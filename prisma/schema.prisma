@@ -1,0 +1,105 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id               String   @id @default(cuid())
+  supabaseId       String   @unique
+  email            String   @unique
+  stripeCustomerId String?  @unique
+  plan             Plan     @default(FREE)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  watchlists Watchlist[]
+  digestRuns DigestRun[]
+}
+
+enum Plan {
+  FREE
+  PAID
+}
+
+model Watchlist {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String   @default("Default")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user    User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tickers WatchlistTicker[]
+
+  @@index([userId])
+}
+
+model WatchlistTicker {
+  id          String   @id @default(cuid())
+  watchlistId String
+  asxCode     String
+  createdAt   DateTime @default(now())
+
+  watchlist Watchlist @relation(fields: [watchlistId], references: [id], onDelete: Cascade)
+
+  @@unique([watchlistId, asxCode])
+  @@index([asxCode])
+}
+
+model Announcement {
+  id          String   @id @default(cuid())
+  asxCode     String
+  headline    String
+  publishedAt DateTime
+  pdfS3Key    String
+  sourceHash  String   @unique
+  createdAt   DateTime @default(now())
+
+  analysis Analysis?
+
+  @@index([asxCode, publishedAt])
+}
+
+model Analysis {
+  id                 String    @id @default(cuid())
+  announcementId     String    @unique
+  summaryMd          String
+  sentiment          Sentiment
+  predictedDirection Direction
+  confidence         Float
+  model              String
+  promptVersion      String
+  createdAt          DateTime  @default(now())
+
+  announcement Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+}
+
+enum Sentiment {
+  POSITIVE
+  NEUTRAL
+  NEGATIVE
+}
+
+enum Direction {
+  UP
+  FLAT
+  DOWN
+}
+
+model DigestRun {
+  id          String    @id @default(cuid())
+  userId      String
+  date        DateTime  @db.Date
+  analysisIds String[]
+  sentAt      DateTime?
+  createdAt   DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+  @@index([date])
+}
