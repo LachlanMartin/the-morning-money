@@ -153,13 +153,13 @@ async function callClaude(
   return validateAnalysisResult(json);
 }
 
-function extractJson(text: string): Record<string, unknown> {
+export function extractJson(text: string): Record<string, unknown> {
   const match = text.match(/\{[\s\S]*\}/);
   if (!match) throw new Error("No JSON found in Claude response");
   return JSON.parse(match[0]);
 }
 
-function validateAnalysisResult(
+export function validateAnalysisResult(
   data: Record<string, unknown>,
 ): AnalysisResult {
   const validSentiments = ["POSITIVE", "NEUTRAL", "NEGATIVE"];

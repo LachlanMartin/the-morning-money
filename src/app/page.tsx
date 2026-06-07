@@ -20,141 +20,173 @@ export default async function HomePage() {
   });
 
   return (
-    <div className="mx-auto w-full max-w-5xl px-6 py-8">
-      <header className="text-center">
-        <hr className="newspaper-rule-thick" />
-        <h1
-          className="font-heading text-6xl font-black tracking-tight leading-none pt-4 pb-1"
-          style={{ fontFamily: "var(--font-heading-family)" }}
-        >
-          The Morning Money
-        </h1>
-        <hr className="newspaper-rule mt-1" />
-        <p className="text-xs uppercase tracking-[0.15em] text-muted-foreground py-1.5">
-          {dateStr} &middot; ASX Edition
-        </p>
-        <hr className="newspaper-rule-thick" />
-      </header>
-
-      <div className="mt-8 grid grid-cols-1 gap-8 md:grid-cols-3">
-        <article className="md:col-span-2">
-          <h2
-            className="font-heading text-3xl font-bold leading-tight"
-            style={{ fontFamily: "var(--font-heading-family)" }}
-          >
-            ASX Announcements, Explained
-          </h2>
-          <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
-            Every day, ASX-listed companies publish hundreds of announcements.
-            Buried in the jargon are signals that matter — contract wins,
-            earnings updates, capital raises, and regulatory changes.
-          </p>
-          <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-            <span className="font-semibold text-foreground">The Morning Money</span>{" "}
-            reads every announcement for the tickers you watch and distills them
-            into plain-English summaries. No fluff. No hype. Just the facts, with
-            clear sentiment analysis so you know what matters.
-          </p>
-        </article>
-
-        <aside className="border-l border-border md:pl-6">
-          <h3
-            className="font-heading text-lg font-bold uppercase tracking-wide"
-            style={{ fontFamily: "var(--font-heading-family)" }}
-          >
-            At a Glance
-          </h3>
-          <ul className="mt-3 space-y-3 text-sm">
-            <li className="border-b border-border pb-3">
-              <span className="font-semibold">AI-Powered</span>
-              <p className="text-muted-foreground mt-0.5">
-                Each announcement analysed by Claude, Anthropic&apos;s most
-                capable AI.
-              </p>
-            </li>
-            <li className="border-b border-border pb-3">
-              <span className="font-semibold">Daily Digest</span>
-              <p className="text-muted-foreground mt-0.5">
-                One email each morning with everything you need to know.
-              </p>
-            </li>
-            <li>
-              <span className="font-semibold">Zero Noise</span>
-              <p className="text-muted-foreground mt-0.5">
-                Only the tickers you care about. No spam. No ads.
-              </p>
-            </li>
-          </ul>
-        </aside>
+    <div className="mx-auto w-full max-w-5xl px-6">
+      {/* Dateline */}
+      <div className="flex items-center justify-between text-xs font-mono tracking-wider text-muted-foreground py-3 border-b border-border">
+        <span>{dateStr}</span>
+        <span>ASX Edition</span>
       </div>
 
-      <hr className="newspaper-rule my-8" />
+      {/* 4-column newspaper grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 border-l border-border">
+        {/* Lead story — spans 3 cols */}
+        <article className="lg:col-span-3 p-6 sm:p-7 lg:p-8 border-r border-border border-b border-border">
+          <p className="text-xs font-mono tracking-wider uppercase text-accent-link mb-3">
+            Lead Story
+          </p>
+          <h1
+            className="font-heading text-[clamp(32px,3.2vw,52px)] font-black tracking-tight leading-[1.05] mb-4"
+            style={{ fontFamily: "var(--font-heading-family)" }}
+          >
+            ASX Announcements, Explained.
+          </h1>
+          <div className="text-[17px] leading-relaxed text-foreground/85 space-y-4 max-w-[65ch]">
+            <p>
+              Every trading day, hundreds of ASX announcements cross the wire
+              — quarterly reports, capital raises, director changes,
+              market-sensitive updates. Most are dense, legalistic documents
+              that take minutes to parse, and by then the morning bell has
+              rung.
+            </p>
+            <p>
+              <span className="font-semibold text-foreground">
+                The Morning Money
+              </span>{" "}
+              reads every announcement so you don&apos;t have to. Each morning
+              you get a curated briefing: what changed, who it affects, and
+              whether the signal is positive, neutral, or negative. General
+              information only — never personal advice. We cut through the
+              compliance boilerplate so you can start your day informed.
+            </p>
+          </div>
+        </article>
 
-      <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
-        <article>
-          <h3
-            className="font-heading text-xl font-bold leading-tight"
+        {/* Sidebar — 1 col spans full height */}
+        <aside className="p-6 sm:p-7 lg:p-8 border-b border-border bg-surface">
+          <div className="border-2 border-foreground p-5 mb-6">
+            <h3
+              className="font-heading text-xl font-extrabold mb-2"
+              style={{ fontFamily: "var(--font-heading-family)" }}
+            >
+              Start Free Trial
+            </h3>
+            <p className="text-sm text-muted-foreground leading-relaxed mb-4">
+              Seven days of daily briefings, watchlists, and AI-powered
+              analysis. No credit card required.
+            </p>
+            <Link
+              href="/signup"
+              className={buttonVariants({
+                className:
+                  "w-full text-xs font-mono tracking-wider uppercase transition-all",
+              })}
+            >
+              Get Started
+            </Link>
+          </div>
+          <ul className="space-y-0 text-sm">
+            {[
+              ["Watchlists", "Track the tickers that matter to you."],
+              [
+                "Sentiment Signals",
+                "Every announcement rated POSITIVE, NEUTRAL, or NEGATIVE.",
+              ],
+              [
+                "AI Analysis",
+                "Claude-powered summaries that cut through the boilerplate.",
+              ],
+              [
+                "Daily Digest",
+                "Email delivery at 7:00 AM AEST, before the market opens.",
+              ],
+            ].map(([strong, text]) => (
+              <li
+                key={strong}
+                className="py-2.5 border-b border-border last:border-none"
+              >
+                <strong className="font-heading font-bold">
+                  {strong}
+                </strong>
+                <p className="text-sm text-muted-foreground mt-0.5">
+                  {text}
+                </p>
+              </li>
+            ))}
+          </ul>
+        </aside>
+
+        {/* Feature 1 */}
+        <article className="p-6 sm:p-7 lg:p-8 border-r border-border border-b border-border">
+          <p className="text-xs font-mono tracking-wider uppercase text-accent-link mb-2">
+            Feature
+          </p>
+          <h2
+            className="font-heading text-xl font-extrabold leading-tight mb-2"
             style={{ fontFamily: "var(--font-heading-family)" }}
           >
             Watch What Matters
-          </h3>
-          <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-            Create watchlists for the ASX tickers you follow. Add BHP, CBA,
-            TLS, or any ASX-listed company. Change them anytime.
+          </h2>
+          <p className="text-sm leading-relaxed text-muted-foreground">
+            Build watchlists for sectors, themes, or individual positions. See
+            a single feed of every announcement across your selected tickers,
+            sorted by market sensitivity.
           </p>
         </article>
-        <article>
-          <h3
-            className="font-heading text-xl font-bold leading-tight"
+
+        {/* Feature 2 */}
+        <article className="p-6 sm:p-7 lg:p-8 border-r border-border border-b border-border sm:border-r-0 lg:border-r border-border">
+          <p className="text-xs font-mono tracking-wider uppercase text-accent-link mb-2">
+            Feature
+          </p>
+          <h2
+            className="font-heading text-xl font-extrabold leading-tight mb-2"
             style={{ fontFamily: "var(--font-heading-family)" }}
           >
             Clear Sentiment Signals
-          </h3>
-          <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-            Every announcement comes with a sentiment score — positive, neutral,
-            or negative — so you can scan what needs your attention first.
+          </h2>
+          <p className="text-sm leading-relaxed text-muted-foreground">
+            Each announcement carries a POSITIVE, NEUTRAL, or NEGATIVE rating
+            based on language analysis. At a glance you know whether an update
+            is worth a deep read or a quick skim.
           </p>
         </article>
-        <article>
-          <h3
-            className="font-heading text-xl font-bold leading-tight"
+
+        {/* Feature 3 */}
+        <article className="p-6 sm:p-7 lg:p-8 border-r border-border border-b border-border">
+          <p className="text-xs font-mono tracking-wider uppercase text-accent-link mb-2">
+            Feature
+          </p>
+          <h2
+            className="font-heading text-xl font-extrabold leading-tight mb-2"
             style={{ fontFamily: "var(--font-heading-family)" }}
           >
-            Delivered to Your Inbox
-          </h3>
-          <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-            A crisp morning briefing lands in your inbox before the market
-            opens. Read it with your coffee and start the day informed.
+            AI-Powered Analysis
+          </h2>
+          <p className="text-sm leading-relaxed text-muted-foreground">
+            Claude processes every ASX filing within minutes of release. Raw
+            compliance language becomes plain English: what changed, why it
+            matters, and what to watch next.
+          </p>
+        </article>
+
+        {/* Feature 4 */}
+        <article className="p-6 sm:p-7 lg:p-8 border-r border-border border-b border-border sm:border-r-0 lg:border-r border-border">
+          <p className="text-xs font-mono tracking-wider uppercase text-accent-link mb-2">
+            Feature
+          </p>
+          <h2
+            className="font-heading text-xl font-extrabold leading-tight mb-2"
+            style={{ fontFamily: "var(--font-heading-family)" }}
+          >
+            Daily Digest
+          </h2>
+          <p className="text-sm leading-relaxed text-muted-foreground">
+            A curated email lands at 7:00 AM AEST, before the ASX opens. Top
+            announcements, your watchlist tickers, and the morning&apos;s most
+            important signal changes.
           </p>
         </article>
       </div>
-
-      <hr className="newspaper-rule-thick mt-10" />
-
-      <div className="mt-6 flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
-        <Link
-          href="/signup"
-          className={buttonVariants({
-            className: "text-sm tracking-wider uppercase px-8",
-          })}
-        >
-          Get Started Free
-        </Link>
-        <Link
-          href="/login"
-          className={buttonVariants({
-            variant: "outline",
-            className: "text-sm tracking-wider uppercase px-8",
-          })}
-        >
-          Sign In
-        </Link>
-      </div>
-
-      <p className="mt-6 text-center text-xs text-muted-foreground">
-        General information only. Not financial advice. &copy; 2026 Morning
-        Money.
-      </p>
     </div>
   );
 }

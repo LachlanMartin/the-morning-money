@@ -49,7 +49,7 @@ User → Watchlist → WatchlistTicker
 ### Prerequisites
 
 - Node.js 20+
-- A Supabase project (free tier works)
+- Docker (for local Supabase) **or** a remote Supabase project (free tier works)
 - (Optional) AWS S3 bucket for PDF storage
 - (Optional) Anthropic API key for analysis
 - (Optional) Resend API key for emails
@@ -68,7 +68,7 @@ Copy the environment template and fill in your own values:
 cp .env.example .env
 ```
 
-At minimum you need a Supabase project URL and anon key. See [.env.example](.env.example) for all options.
+`.env.example` has two blocks — remote Supabase (default) and local Supabase (via CLI). Uncomment the one you need. See [.env.example](.env.example) for all options.
 
 ```bash
 # Run migrations
@@ -79,6 +79,33 @@ npm run dev
 ```
 
 Open [localhost:3000](http://localhost:3000) → sign up → create watchlists → add tickers.
+
+### Local Supabase
+
+The project can run entirely offline using the Supabase CLI, which spins up
+Postgres + Auth + Storage in Docker on your machine.
+
+```bash
+brew install supabase/tap/supabase    # if not already installed
+supabase start                         # starts all local services
+npx prisma generate                    # (re)generate Prisma client
+npx prisma migrate deploy              # apply migrations to local DB
+npm run dev
+```
+
+| Service         | URL                                           |
+| --------------- | --------------------------------------------- |
+| Supabase API    | `http://127.0.0.1:54321`                      |
+| Studio (UI)     | `http://127.0.0.1:54323`                      |
+| Mailpit (email) | `http://127.0.0.1:54324`                      |
+| Postgres        | `postgresql://postgres:postgres@127.0.0.1:54322/postgres` |
+
+Email confirmations are disabled locally so sign-ups work without an SMTP
+provider. Emails the app would send (password resets, etc.) are captured in
+[Mailpit](http://127.0.0.1:54324).
+
+To switch back to your remote Supabase project, swap the commented blocks in
+`.env`.
 
 ### Commands
 
