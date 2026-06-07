@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
-import { Geist_Mono, Playfair_Display } from "next/font/google";
+import { JetBrains_Mono, Playfair_Display } from "next/font/google";
+import { Header } from "@/components/Header";
+import { Footer } from "@/components/Footer";
 import "./globals.css";
 
 const playfair = Playfair_Display({
@@ -7,8 +9,8 @@ const playfair = Playfair_Display({
   subsets: ["latin"],
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const jetbrainsMono = JetBrains_Mono({
+  variable: "--font-mono-family",
   subsets: ["latin"],
 });
 
@@ -26,9 +28,13 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${playfair.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${playfair.variable} ${jetbrainsMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        <Header />
+        <main className="flex-1">{children}</main>
+        <Footer />
+      </body>
     </html>
   );
 }

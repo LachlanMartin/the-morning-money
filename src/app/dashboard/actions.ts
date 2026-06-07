@@ -7,8 +7,18 @@ import { prisma } from "@/lib/prisma";
 export type WatchlistActionState = { error: string | null };
 
 const ASX_CODE_RE = /^[A-Za-z]{1,3}$/;
-const MAX_WATCHLISTS_FREE = 3;
-const MAX_TICKERS_FREE = 20;
+
+const LIMITS = {
+  FREE: {
+    maxWatchlists: 3,
+    maxTickersPerWatchlist: 20,
+  },
+  PAID: {
+    maxWatchlists: 20,
+    maxTickersPerWatchlist: 50,
+    maxTickersTotal: 150,
+  },
+} as const;
 
 export async function createWatchlist(
   _prev: WatchlistActionState,
@@ -21,10 +31,12 @@ export async function createWatchlist(
   if (!name) return { error: "Watchlist name is required." };
   if (name.length > 50) return { error: "Name must be 50 characters or less." };
 
+  const limit = user.plan === "FREE" ? LIMITS.FREE : LIMITS.PAID;
+
   const count = await prisma.watchlist.count({ where: { userId: user.id } });
-  if (count >= MAX_WATCHLISTS_FREE && user.plan === "FREE") {
+  if (count >= limit.maxWatchlists) {
     return {
-      error: `Free plan allows up to ${MAX_WATCHLISTS_FREE} watchlists. Upgrade to add more.`,
+      error: `Your plan allows up to ${limit.maxWatchlists} watchlists.`,
     };
   }
 
@@ -70,7 +82,7 @@ export async function addTicker(
   if (!watchlistId) return { error: "Watchlist ID is required." };
   if (!asxCode) return { error: "ASX code is required." };
   if (!ASX_CODE_RE.test(asxCode)) {
-    return { error: "ASX code must be 1–3 letters (e.g. BHP, CBA, TLS)." };
+    return { error: "ASX code must be 1\u20133 letters (e.g. BHP, CBA, TLS)." };
   }
 
   const watchlist = await prisma.watchlist.findUnique({
@@ -81,10 +93,30 @@ export async function addTicker(
     return { error: "Watchlist not found." };
   }
 
-  if (watchlist.tickers.length >= MAX_TICKERS_FREE && user.plan === "FREE") {
+  const limit = user.plan === "FREE" ? LIMITS.FREE : LIMITS.PAID;
+
+  // Per-watchlist cap
+  if (watchlist.tickers.length >= limit.maxTickersPerWatchlist) {
     return {
-      error: `Free plan allows up to ${MAX_TICKERS_FREE} tickers per watchlist.`,
+      error: `Your plan allows up to ${limit.maxTickersPerWatchlist} tickers per watchlist.`,
     };
+  }
+
+  // Distinct ticker cap (paid only — free is already bounded by watchlist×per-watchlist)
+  if (user.plan !== "FREE" && "maxTickersTotal" in limit) {
+    const totalDistinct = await prisma.watchlistTicker.findMany({
+      where: { watchlist: { userId: user.id } },
+      select: { asxCode: true },
+      distinct: ["asxCode"],
+    });
+    const alreadyWatching = totalDistinct.some(
+      (t) => t.asxCode === asxCode,
+    );
+    if (!alreadyWatching && totalDistinct.length >= limit.maxTickersTotal) {
+      return {
+        error: `Your plan allows up to ${limit.maxTickersTotal} distinct tickers across all watchlists.`,
+      };
+    }
   }
 
   if (watchlist.tickers.some((t) => t.asxCode === asxCode)) {

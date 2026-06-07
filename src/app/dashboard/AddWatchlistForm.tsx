@@ -16,26 +16,25 @@ export function AddWatchlistForm() {
   }, [state.error]);
 
   return (
-    <form ref={ref} action={action} className="flex items-center gap-2">
+    <form ref={ref} action={action} className="flex gap-3 items-center flex-wrap">
       <Input
         name="name"
-        placeholder="New watchlist name"
-        className="w-48 h-8 text-sm"
+        placeholder="e.g. Australian Banks, Lithium Miners, ASX200 Defensives"
+        className="flex-1 min-w-[200px] h-10 text-sm"
         required
       />
       <button
         type="submit"
         disabled={pending}
         className={buttonVariants({
-          size: "sm",
-          variant: "outline",
-          className: "text-xs tracking-wider uppercase h-8",
+          className:
+            "text-xs font-mono tracking-wider uppercase h-10 whitespace-nowrap transition-all",
         })}
       >
-        {pending ? "Creating…" : "Create"}
+        {pending ? "Creating\u2026" : "Add Watchlist"}
       </button>
       {state.error ? (
-        <p className="text-xs text-destructive">{state.error}</p>
+        <p className="w-full text-xs text-destructive">{state.error}</p>
       ) : null}
     </form>
   );

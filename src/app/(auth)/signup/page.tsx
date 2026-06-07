@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useActionState } from "react";
-import { buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { signUp, type AuthState } from "../actions";
@@ -13,75 +12,83 @@ export default function SignUpPage() {
   const [state, action, pending] = useActionState(signUp, initial);
 
   return (
-    <div className="mx-auto flex min-h-svh w-full max-w-lg flex-col items-center justify-center px-6">
-      <Link
-        href="/"
-        className="font-heading text-3xl font-black tracking-tight no-underline"
-        style={{ fontFamily: "var(--font-heading-family)" }}
-      >
-        The Morning Money
-      </Link>
-      <hr className="newspaper-rule-thick mt-4 w-full max-w-sm" />
-      <h2
-        className="font-heading mt-6 text-xl font-bold"
-        style={{ fontFamily: "var(--font-heading-family)" }}
-      >
-        Create Your Account
-      </h2>
-      <p className="mt-1 text-sm text-muted-foreground">
-        Start tracking ASX announcements today.
-      </p>
-
-      <form action={action} className="mt-6 w-full max-w-sm space-y-4">
-        <div className="space-y-1.5">
-          <Label htmlFor="email" className="text-xs uppercase tracking-wider">
-            Email
-          </Label>
-          <Input
-            id="email"
-            name="email"
-            type="email"
-            autoComplete="email"
-            required
-            className="text-sm"
-          />
-        </div>
-        <div className="space-y-1.5">
-          <Label
-            htmlFor="password"
-            className="text-xs uppercase tracking-wider"
+    <div className="min-h-screen flex flex-col">
+      <main className="flex-1 flex flex-col items-center justify-center px-6 py-8">
+        <div className="w-full max-w-sm">
+          <Link
+            href="/"
+            className="font-heading text-[clamp(28px,4vw,36px)] font-black tracking-tight no-underline inline-block mb-5 hover:text-accent-link transition-colors"
+            style={{ fontFamily: "var(--font-heading-family)" }}
           >
-            Password
-          </Label>
-          <Input
-            id="password"
-            name="password"
-            type="password"
-            autoComplete="new-password"
-            minLength={8}
-            required
-            className="text-sm"
-          />
-        </div>
-        {state.error ? (
-          <p className="text-sm text-destructive">{state.error}</p>
-        ) : null}
-        <button
-          type="submit"
-          disabled={pending}
-          className={buttonVariants({
-            className: "w-full text-sm tracking-wider uppercase",
-          })}
-        >
-          {pending ? "Creating account…" : "Sign Up"}
-        </button>
-        <p className="text-center text-xs text-muted-foreground">
-          Already have an account?{" "}
-          <Link href="/login" className="underline underline-offset-2">
-            Sign in
+            The Morning Money
           </Link>
+          <hr className="border-t border-foreground mb-7" />
+          <form action={action}>
+            <div className="mb-[18px]">
+              <Label
+                htmlFor="email"
+                className="font-mono text-[11px] tracking-wider uppercase text-muted-foreground mb-1.5 block"
+              >
+                Email
+              </Label>
+              <Input
+                id="email"
+                name="email"
+                type="email"
+                placeholder="jamie@example.com"
+                autoComplete="email"
+                required
+                className="w-full px-3.5 py-2.5 border border-input bg-surface text-foreground font-sans text-[15px] rounded-none h-auto focus:outline-2 focus:outline-accent-link focus:border-accent-link"
+              />
+            </div>
+            <div className="mb-[18px]">
+              <Label
+                htmlFor="password"
+                className="font-mono text-[11px] tracking-wider uppercase text-muted-foreground mb-1.5 block"
+              >
+                Password
+              </Label>
+              <Input
+                id="password"
+                name="password"
+                type="password"
+                placeholder="Create a strong password"
+                autoComplete="new-password"
+                minLength={8}
+                required
+                className="w-full px-3.5 py-2.5 border border-input bg-surface text-foreground font-sans text-[15px] rounded-none h-auto focus:outline-2 focus:outline-accent-link focus:border-accent-link"
+              />
+            </div>
+            {state.error ? (
+              <p className="text-sm text-destructive mb-3">{state.error}</p>
+            ) : null}
+            <button
+              type="submit"
+              disabled={pending}
+              className="w-full py-3 bg-foreground text-background font-mono text-xs tracking-[0.08em] uppercase border-none rounded-none mt-2 cursor-pointer transition-colors duration-150 hover:bg-accent-link disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              {pending ? "Creating account\u2026" : "Start Free Trial"}
+            </button>
+            <p className="text-center text-sm text-muted-foreground mt-4 leading-relaxed">
+              7-day free trial. No credit card required. Cancel anytime.
+            </p>
+            <p className="text-center text-sm text-muted-foreground mt-5">
+              Already have an account?{" "}
+              <Link
+                href="/login"
+                className="text-accent-link underline underline-offset-2 hover:text-accent-hover transition-colors"
+              >
+                Sign in
+              </Link>
+            </p>
+          </form>
+        </div>
+      </main>
+      <footer className="py-6 px-6 text-center">
+        <p className="text-sm text-muted-foreground max-w-[48ch] mx-auto leading-relaxed">
+          General information only. Not financial advice.
         </p>
-      </form>
+      </footer>
     </div>
   );
 }
