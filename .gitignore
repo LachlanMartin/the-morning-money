@@ -37,6 +37,10 @@ yarn-error.log*
 # vercel
 .vercel
 
+# agent tooling
+skills-lock.json
+.mcp.json
+
 # playwright mcp sessions
 .playwright-mcp/
 
