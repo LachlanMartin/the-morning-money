@@ -1,4 +1,4 @@
-# Morning Money
+# The Morning Money
 
 Plain-English summaries of ASX announcements for the tickers you watch. Delivered every morning.
 
@@ -11,9 +11,9 @@ Plain-English summaries of ASX announcements for the tickers you watch. Delivere
 - **Supabase Auth** — email/password signup, login, email confirmation, session management
 - **Watchlist Manager** — create watchlists, add/remove ASX tickers (e.g. BHP, CBA, TLS)
 - **Announcement Ingestion** — scrapes ASX Market Announcements Platform for today's PDFs
-- **AI Analysis** (coming next) — per-announcement summaries via Anthropic Claude
-- **Daily Digest** (planned) — morning email of analysed announcements via Resend
-- **Stripe Billing** (planned) — FREE / PAID plan gating
+- **AI Analysis** — per-announcement summaries via Anthropic Claude
+- **Daily Digest** — morning email of analysed announcements via Resend
+- **Stripe Billing** — FREE / PAID plan gating
 
 ## Tech Stack
 
@@ -109,15 +109,17 @@ To switch back to your remote Supabase project, swap the commented blocks in
 
 ### Commands
 
-| Command                  | Description                           |
-| ------------------------ | ------------------------------------- |
-| `npm run dev`            | Start dev server                      |
-| `npm run build`          | Production build                      |
-| `npm run start`          | Start production server               |
-| `npm run lint`           | Run ESLint                            |
-| `npx prisma migrate dev` | Create migration after schema changes |
-| `npx prisma generate`    | Regenerate Prisma client              |
-| `npx prisma studio`      | Open database UI                      |
+| Command                  | Description                              |
+| ------------------------ | ---------------------------------------- |
+| `npm run dev`            | Start Next.js dev server                 |
+| `npm run dev:full`       | Full local env — Supabase + Next.js      |
+| `npm run build`          | Production build                         |
+| `npm run start`          | Start production server                  |
+| `npm run lint`           | Run ESLint                               |
+| `npm run test`           | Run unit tests                           |
+| `npx prisma migrate dev` | Create migration after schema changes    |
+| `npx prisma generate`    | Regenerate Prisma client                 |
+| `npx prisma studio`      | Open database UI                         |
 
 ## Deployment
 
@@ -135,13 +137,13 @@ Set all env vars from `.env.example` in your Vercel project dashboard.
 - [x] Auth + database scaffold
 - [x] Watchlist CRUD
 - [x] Announcement ingestion
-- [ ] AI analysis pipeline
-- [ ] Daily digest emails
-- [ ] Scheduled cron
-- [ ] Stripe billing
-- [ ] Production polish
+- [x] AI analysis pipeline
+- [x] Daily digest emails
+- [x] Scheduled cron
+- [x] Stripe billing
+- [x] Production polish
 
-See [PLAN.md](PLAN.md) for the full roadmap.
+See [GitHub Issues](https://github.com/LachlanMartin/the-morning-money/issues) for remaining tasks and future ideas.
 
 ## License
 
