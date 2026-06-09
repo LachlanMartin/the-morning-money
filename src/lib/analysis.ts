@@ -6,7 +6,7 @@ import { PDFParse } from "pdf-parse";
 const CURRENT_PROMPT_VERSION = "1.0";
 const MODEL = "claude-sonnet-4-20250514";
 
-const SYSTEM_PROMPT = `You are a financial news analyst at Morning Money, a service that provides plain-English summaries of ASX (Australian Securities Exchange) announcements.
+const SYSTEM_PROMPT = `You are a financial news analyst at The Morning Money, a service that provides plain-English summaries of ASX (Australian Securities Exchange) announcements.
 
 ## Your role
 - Analyse ASX company announcements and produce clear, factual summaries.
