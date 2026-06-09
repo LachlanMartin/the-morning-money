@@ -6,6 +6,15 @@ import { PDFParse } from "pdf-parse";
 const CURRENT_PROMPT_VERSION = "1.0";
 const MODEL = "claude-sonnet-4-20250514";
 
+// Configure PDF.js worker for Node.js runtime
+try {
+  PDFParse.setWorker(
+    new URL("pdf-parse/dist/pdf-parse/esm/pdf.worker.mjs", `file://${process.cwd()}/node_modules/`).href,
+  );
+} catch {
+  // Worker config is best-effort; PDFParse will use fallback
+}
+
 const SYSTEM_PROMPT = `You are a financial news analyst at The Morning Money, a service that provides plain-English summaries of ASX (Australian Securities Exchange) announcements.
 
 ## Your role
@@ -115,7 +124,8 @@ async function fetchPdfBuffer(pdfS3Key: string): Promise<Buffer> {
 }
 
 async function extractPdfText(buffer: Buffer): Promise<string> {
-  const parser = new PDFParse(buffer);
+  const uint8 = new Uint8Array(buffer);
+  const parser = new PDFParse(uint8);
   const result = await parser.getText();
   await parser.destroy();
   return result.text;
@@ -176,6 +186,7 @@ export function validateAnalysisResult(
   }
   if (
     typeof data.confidence !== "number" ||
+    Number.isNaN(data.confidence) ||
     data.confidence < 0 ||
     data.confidence > 1
   ) {

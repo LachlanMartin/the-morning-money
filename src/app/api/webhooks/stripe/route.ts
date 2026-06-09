@@ -56,13 +56,23 @@ export async function POST(request: Request) {
         });
 
         if (user) {
-          const status = subscription.status;
-          const plan = status === "active" || status === "trialing" ? "PAID" : "FREE";
+          const { status, cancel_at_period_end: cancelAtPeriodEnd } = subscription;
+          // Active/trialing subs keep PAID. When cancel_at_period_end is
+          // true, the sub remains active until period end — at which point
+          // customer.subscription.deleted fires and downgrades to FREE.
+          const isActive = status === "active" || status === "trialing";
+          const plan = isActive ? "PAID" : "FREE";
 
           await prisma.user.update({
             where: { id: user.id },
             data: { plan },
           });
+
+          if (cancelAtPeriodEnd) {
+            console.log(
+              `[stripe] User ${user.email}: subscription set to cancel at period end`,
+            );
+          }
         }
         break;
       }
