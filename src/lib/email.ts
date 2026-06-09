@@ -1,6 +1,7 @@
 import { getResendClient } from "@/lib/resend";
 
-const FROM_ADDRESS = "Morning Money <daily@morning-money.app>";
+const FROM_ADDRESS =
+  process.env.RESEND_FROM_ADDRESS || "Morning Money <daily@morning-money.app>";
 
 type AnalysisForEmail = {
   asxCode: string;

@@ -2,6 +2,13 @@ import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { AddWatchlistForm } from "./AddWatchlistForm";
 import { WatchlistCard } from "./WatchlistCard";
+import { UpgradeToast } from "@/components/UpgradeToast";
+import type { Plan } from "@prisma/client";
+
+const LIMITS = {
+  FREE: { maxWatchlists: 3, maxTickersPerWatchlist: 20 },
+  PAID: { maxWatchlists: 20, maxTickersPerWatchlist: 50, maxTickersTotal: 150 },
+} as const;
 
 export default async function DashboardPage() {
   const user = await requireUser();
@@ -19,6 +26,7 @@ export default async function DashboardPage() {
     0,
   );
 
+  const limit = LIMITS[user.plan];
   const today = new Date();
   const dateStr = today.toLocaleDateString("en-AU", {
     weekday: "long",
@@ -27,11 +35,23 @@ export default async function DashboardPage() {
     day: "numeric",
   });
 
+  const planBadge =
+    user.plan === "PAID"
+      ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 border-green-200 dark:border-green-800"
+      : "bg-surface text-muted-foreground border-border";
+
   return (
     <div className="mx-auto w-full max-w-5xl px-6 py-8">
+      <UpgradeToast />
+
       {/* Dateline */}
       <div className="flex items-center justify-between text-xs font-mono tracking-wider text-muted-foreground pb-3 border-b border-border">
         <span>{dateStr} &middot; ASX Edition</span>
+        <span
+          className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${planBadge}`}
+        >
+          {user.plan === "PAID" ? "Pro" : "Free"} Plan
+        </span>
       </div>
 
       {/* Dashboard header */}
@@ -47,7 +67,7 @@ export default async function DashboardPage() {
         </p>
       </div>
 
-      {/* Summary stats */}
+      {/* Summary stats with usage limits */}
       <div className="flex gap-8 items-baseline py-4 border-b border-border mb-6">
         <div className="flex items-baseline gap-1.5">
           <span
@@ -55,6 +75,9 @@ export default async function DashboardPage() {
             style={{ fontFamily: "var(--font-heading-family)" }}
           >
             {watchlists.length}
+            <span className="text-base font-normal text-muted-foreground">
+              /{limit.maxWatchlists}
+            </span>
           </span>
           <span className="text-sm text-muted-foreground uppercase font-mono text-xs tracking-wider">
             Watchlists

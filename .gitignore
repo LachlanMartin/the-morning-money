@@ -43,6 +43,8 @@ skills-lock.json
 
 # playwright mcp sessions
 .playwright-mcp/
+# playwright test artifacts
+test-results/
 
 # supabase temp files
 supabase/.temp/
