@@ -172,9 +172,16 @@ export async function runDailyPipeline(): Promise<{
     errors.push(`Analysis failed: ${err}`);
   }
 
-  // Step 3: Generate digests for paid users only
+  // Step 3: Generate digests for paid users and active trial users
   const today = new Date();
-  const users = await prisma.user.findMany({ where: { plan: "PAID" } });
+  const users = await prisma.user.findMany({
+    where: {
+      OR: [
+        { plan: "PAID" },
+        { plan: "FREE", trialExpiresAt: { gte: today } },
+      ],
+    },
+  });
   let digestsGenerated = 0;
   const digestRunIds: string[] = [];
 

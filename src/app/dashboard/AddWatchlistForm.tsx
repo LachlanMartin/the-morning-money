@@ -19,8 +19,8 @@ export function AddWatchlistForm() {
     <form ref={ref} action={action} className="flex gap-3 items-center flex-wrap">
       <Input
         name="name"
-        placeholder="e.g. Australian Banks, Lithium Miners, ASX200 Defensives"
-        className="flex-1 min-w-[200px] h-10 text-sm"
+        placeholder="Name your watchlist..."
+        className="flex-1 min-w-[200px] h-10 text-sm bg-foreground/5"
         required
       />
       <button

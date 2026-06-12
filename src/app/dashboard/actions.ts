@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { getCurrentUser } from "@/lib/auth";
+import { getCurrentUser, isTrialExpired } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 export type WatchlistActionState = { error: string | null };
@@ -10,35 +10,32 @@ const ASX_CODE_RE = /^[A-Za-z]{1,3}$/;
 
 const LIMITS = {
   FREE: {
-    maxWatchlists: 3,
-    maxTickersPerWatchlist: 20,
+    maxDistinctTickers: 20,
   },
   PAID: {
-    maxWatchlists: 20,
-    maxTickersPerWatchlist: 50,
-    maxTickersTotal: 150,
+    maxDistinctTickers: 150,
   },
 } as const;
+
+type AuthedUser = NonNullable<Awaited<ReturnType<typeof getCurrentUser>>>;
+
+async function requireActiveUser(): Promise<AuthedUser | WatchlistActionState> {
+  const user = await getCurrentUser();
+  if (!user) return { error: "You must be signed in." };
+  if (isTrialExpired(user)) return { error: "Your free trial has ended. Upgrade to Pro to continue." };
+  return user;
+}
 
 export async function createWatchlist(
   _prev: WatchlistActionState,
   formData: FormData,
 ): Promise<WatchlistActionState> {
-  const user = await getCurrentUser();
-  if (!user) return { error: "You must be signed in." };
+  const user = await requireActiveUser();
+  if ("error" in user) return user;
 
   const name = String(formData.get("name") ?? "").trim();
   if (!name) return { error: "Watchlist name is required." };
   if (name.length > 50) return { error: "Name must be 50 characters or less." };
-
-  const limit = user.plan === "FREE" ? LIMITS.FREE : LIMITS.PAID;
-
-  const count = await prisma.watchlist.count({ where: { userId: user.id } });
-  if (count >= limit.maxWatchlists) {
-    return {
-      error: `Your plan allows up to ${limit.maxWatchlists} watchlists.`,
-    };
-  }
 
   await prisma.watchlist.create({
     data: { name, userId: user.id },
@@ -48,18 +45,42 @@ export async function createWatchlist(
   return { error: null };
 }
 
+export async function renameWatchlist(
+  _prev: WatchlistActionState,
+  formData: FormData,
+): Promise<WatchlistActionState> {
+  const result = await requireActiveUser();
+  if ("error" in result) return result;
+
+  const id = String(formData.get("id") ?? "");
+  const name = String(formData.get("name") ?? "").trim();
+  if (!id) return { error: "Watchlist ID is required." };
+  if (!name) return { error: "Name is required." };
+  if (name.length > 50) return { error: "Name must be 50 characters or less." };
+
+  const watchlist = await prisma.watchlist.findUnique({ where: { id } });
+  if (!watchlist || watchlist.userId !== result.id) {
+    return { error: "Watchlist not found." };
+  }
+
+  await prisma.watchlist.update({ where: { id }, data: { name } });
+
+  revalidatePath("/dashboard");
+  return { error: null };
+}
+
 export async function deleteWatchlist(
   _prev: WatchlistActionState,
   formData: FormData,
 ): Promise<WatchlistActionState> {
-  const user = await getCurrentUser();
-  if (!user) return { error: "You must be signed in." };
+  const result = await requireActiveUser();
+  if ("error" in result) return result;
 
   const id = String(formData.get("id") ?? "");
   if (!id) return { error: "Watchlist ID is required." };
 
   const watchlist = await prisma.watchlist.findUnique({ where: { id } });
-  if (!watchlist || watchlist.userId !== user.id) {
+  if (!watchlist || watchlist.userId !== result.id) {
     return { error: "Watchlist not found." };
   }
 
@@ -73,8 +94,8 @@ export async function addTicker(
   _prev: WatchlistActionState,
   formData: FormData,
 ): Promise<WatchlistActionState> {
-  const user = await getCurrentUser();
-  if (!user) return { error: "You must be signed in." };
+  const result = await requireActiveUser();
+  if ("error" in result) return result;
 
   const watchlistId = String(formData.get("watchlistId") ?? "");
   const asxCode = String(formData.get("asxCode") ?? "").trim().toUpperCase();
@@ -89,34 +110,23 @@ export async function addTicker(
     where: { id: watchlistId },
     include: { tickers: true },
   });
-  if (!watchlist || watchlist.userId !== user.id) {
+  if (!watchlist || watchlist.userId !== result.id) {
     return { error: "Watchlist not found." };
   }
 
-  const limit = user.plan === "FREE" ? LIMITS.FREE : LIMITS.PAID;
+  const limit = result.plan === "FREE" ? LIMITS.FREE : LIMITS.PAID;
 
-  // Per-watchlist cap
-  if (watchlist.tickers.length >= limit.maxTickersPerWatchlist) {
+  const existingDistinct = await prisma.watchlistTicker.findMany({
+    where: { watchlist: { userId: result.id } },
+    select: { asxCode: true },
+    distinct: ["asxCode"],
+  });
+
+  const alreadyWatching = existingDistinct.some((t) => t.asxCode === asxCode);
+  if (!alreadyWatching && existingDistinct.length >= limit.maxDistinctTickers) {
     return {
-      error: `Your plan allows up to ${limit.maxTickersPerWatchlist} tickers per watchlist.`,
+      error: `Your plan allows up to ${limit.maxDistinctTickers} distinct tickers across all watchlists.`,
     };
-  }
-
-  // Distinct ticker cap (paid only — free is already bounded by watchlist×per-watchlist)
-  if (user.plan !== "FREE" && "maxTickersTotal" in limit) {
-    const totalDistinct = await prisma.watchlistTicker.findMany({
-      where: { watchlist: { userId: user.id } },
-      select: { asxCode: true },
-      distinct: ["asxCode"],
-    });
-    const alreadyWatching = totalDistinct.some(
-      (t) => t.asxCode === asxCode,
-    );
-    if (!alreadyWatching && totalDistinct.length >= limit.maxTickersTotal) {
-      return {
-        error: `Your plan allows up to ${limit.maxTickersTotal} distinct tickers across all watchlists.`,
-      };
-    }
   }
 
   if (watchlist.tickers.some((t) => t.asxCode === asxCode)) {
@@ -146,8 +156,8 @@ export async function removeTicker(
   _prev: WatchlistActionState,
   formData: FormData,
 ): Promise<WatchlistActionState> {
-  const user = await getCurrentUser();
-  if (!user) return { error: "You must be signed in." };
+  const result = await requireActiveUser();
+  if ("error" in result) return result;
 
   const id = String(formData.get("id") ?? "");
   if (!id) return { error: "Ticker ID is required." };
@@ -156,7 +166,7 @@ export async function removeTicker(
     where: { id },
     include: { watchlist: true },
   });
-  if (!ticker || ticker.watchlist.userId !== user.id) {
+  if (!ticker || ticker.watchlist.userId !== result.id) {
     return { error: "Ticker not found." };
   }
 

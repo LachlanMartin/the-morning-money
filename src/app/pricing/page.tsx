@@ -1,10 +1,23 @@
 import Link from "next/link";
-import { getCurrentUser } from "@/lib/auth";
+import { getCurrentUser, isTrialExpired } from "@/lib/auth";
 import { buttonVariants } from "@/components/ui/button";
 import { createCheckoutSession, createPortalSession } from "./actions";
 
 export default async function PricingPage() {
   const user = await getCurrentUser();
+
+  const trialDaysLeft =
+    user && user.plan === "FREE" && user.trialExpiresAt
+      ? Math.max(
+          0,
+          Math.ceil(
+            (user.trialExpiresAt.getTime() - Date.now()) /
+              (1000 * 60 * 60 * 24),
+          ),
+        )
+      : null;
+
+  const trialExpired = user ? isTrialExpired(user) : false;
 
   return (
     <div className="mx-auto w-full max-w-5xl px-6 py-10">
@@ -21,7 +34,128 @@ export default async function PricingPage() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 gap-8 md:grid-cols-2 max-w-3xl mx-auto">
+      <div className="grid grid-cols-1 gap-8 md:grid-cols-3 max-w-4xl mx-auto">
+        {/* FREE */}
+        <div className="border border-border bg-surface p-6 flex flex-col">
+          <h2
+            className="font-heading text-2xl font-bold mb-2"
+            style={{ fontFamily: "var(--font-heading-family)" }}
+          >
+            Free
+          </h2>
+          <p className="text-sm text-muted-foreground mb-4">7-day free trial, no credit card needed</p>
+          <p className="text-4xl font-heading font-black mb-6" style={{ fontFamily: "var(--font-heading-family)" }}>
+            $0
+            <span className="text-sm font-body font-normal text-muted-foreground"> /month</span>
+          </p>
+          <ul className="space-y-2 text-sm mb-8 flex-1">
+            <li className="flex items-baseline gap-2">
+              <span className="text-accent-link">{'\u2713'}</span> Unlimited watchlists
+            </li>
+            <li className="flex items-baseline gap-2">
+              <span className="text-accent-link">{'\u2713'}</span> 20 unique tickers
+            </li>
+            <li className="flex items-baseline gap-2">
+              <span className="text-accent-link">{'\u2713'}</span> AI-powered analysis
+            </li>
+            <li className="flex items-baseline gap-2">
+              <span className="text-accent-link">{'\u2713'}</span> Daily email digest
+            </li>
+          </ul>
+          {user ? (
+            user.plan === "FREE" ? (
+              <div className="text-center space-y-1">
+                <p className="text-xs font-mono tracking-wider uppercase text-muted-foreground">
+                  Current plan
+                </p>
+                {trialExpired ? (
+                  <p className="text-xs text-amber-600 dark:text-amber-400 font-semibold">
+                    Trial ended — upgrade to continue
+                  </p>
+                ) : trialDaysLeft !== null ? (
+                  <p className="text-xs text-amber-600 dark:text-amber-400 font-semibold">
+                    {trialDaysLeft === 0
+                      ? "Last day of trial"
+                      : `${trialDaysLeft} ${trialDaysLeft === 1 ? "day" : "days"} left`}
+                  </p>
+                ) : null}
+              </div>
+            ) : null
+          ) : (
+            <Link
+              href="/signup"
+              className={buttonVariants({
+                className: "w-full text-xs font-mono tracking-wider uppercase",
+              })}
+            >
+              Start Free Trial
+            </Link>
+          )}
+        </div>
+
+        {/* PRO */}
+        <div className="border-2 border-foreground bg-surface p-6 flex flex-col relative">
+          <span className="absolute -top-2.5 left-4 bg-background px-2 font-mono text-[10px] uppercase tracking-wider text-accent-link">
+            Recommended
+          </span>
+          <h2
+            className="font-heading text-2xl font-bold mb-2"
+            style={{ fontFamily: "var(--font-heading-family)" }}
+          >
+            Pro
+          </h2>
+          <p className="text-sm text-muted-foreground mb-4">More watchlists, more tickers</p>
+          <p className="text-4xl font-heading font-black mb-6" style={{ fontFamily: "var(--font-heading-family)" }}>
+            $19
+            <span className="text-sm font-body font-normal text-muted-foreground"> /month</span>
+          </p>
+          <ul className="space-y-2 text-sm mb-8 flex-1">
+            <li className="flex items-baseline gap-2">
+              <span className="text-accent-link">{'\u2713'}</span> Unlimited watchlists
+            </li>
+            <li className="flex items-baseline gap-2">
+              <span className="text-accent-link">{'\u2713'}</span> 150 unique tickers
+            </li>
+            <li className="flex items-baseline gap-2">
+              <span className="text-accent-link">{'\u2713'}</span> AI-powered analysis
+            </li>
+            <li className="flex items-baseline gap-2">
+              <span className="text-accent-link">{'\u2713'}</span> Daily email digest
+            </li>
+            <li className="flex items-baseline gap-2">
+              <span className="text-accent-link">{'\u2713'}</span> No API keys to manage
+            </li>
+            <li className="flex items-baseline gap-2">
+              <span className="text-accent-link">{'\u2713'}</span> Priority support
+            </li>
+          </ul>
+          {user?.plan === "PAID" ? (
+            <form action={createPortalSession}>
+              <button
+                type="submit"
+                className={buttonVariants({
+                  className:
+                    "w-full text-xs font-mono tracking-wider uppercase",
+                })}
+              >
+                Manage Billing
+              </button>
+            </form>
+          ) : (
+            <form action={createCheckoutSession}>
+              <button
+                type="submit"
+                className={buttonVariants({
+                  className:
+                    "w-full text-xs font-mono tracking-wider uppercase",
+                })}
+              >
+                {user ? "Upgrade to Pro" : "Get Started"}
+              </button>
+            </form>
+          )}
+        </div>
+
         {/* SELF-HOST */}
         <div className="border border-border bg-surface p-6 flex flex-col">
           <h2
@@ -33,7 +167,7 @@ export default async function PricingPage() {
           <p className="text-sm text-muted-foreground mb-4">Run on your own infrastructure</p>
           <p className="text-4xl font-heading font-black mb-6" style={{ fontFamily: "var(--font-heading-family)" }}>
             $0
-            <span className="text-sm font-body font-normal text-muted-foreground">/month + your API costs</span>
+            <span className="text-sm font-body font-normal text-muted-foreground"> /month + your API costs</span>
           </p>
           <ul className="space-y-2 text-sm mb-8 flex-1">
             <li className="flex items-baseline gap-2">
@@ -66,76 +200,6 @@ export default async function PricingPage() {
           >
             View on GitHub
           </Link>
-        </div>
-
-        {/* HOSTED */}
-        <div className="border-2 border-foreground bg-surface p-6 flex flex-col relative">
-          <span className="absolute -top-2.5 left-4 bg-background px-2 font-mono text-[10px] uppercase tracking-wider text-accent-link">
-            Recommended
-          </span>
-          <h2
-            className="font-heading text-2xl font-bold mb-2"
-            style={{ fontFamily: "var(--font-heading-family)" }}
-          >
-            Pro (Hosted)
-          </h2>
-          <p className="text-sm text-muted-foreground mb-4">We manage everything for you</p>
-          <p className="text-4xl font-heading font-black mb-6" style={{ fontFamily: "var(--font-heading-family)" }}>
-            $19
-            <span className="text-sm font-body font-normal text-muted-foreground">/month</span>
-          </p>
-          <ul className="space-y-2 text-sm mb-8 flex-1">
-            <li className="flex items-baseline gap-2">
-              <span className="text-accent-link">{'\u2713'}</span> 20 watchlists
-            </li>
-            <li className="flex items-baseline gap-2">
-              <span className="text-accent-link">{'\u2713'}</span> 50 tickers per watchlist
-            </li>
-            <li className="flex items-baseline gap-2">
-              <span className="text-accent-link">{'\u2713'}</span> 150 distinct tickers total
-            </li>
-            <li className="flex items-baseline gap-2">
-              <span className="text-accent-link">{'\u2713'}</span> AI-powered analysis
-            </li>
-            <li className="flex items-baseline gap-2">
-              <span className="text-accent-link">{'\u2713'}</span> Daily email digest
-            </li>
-            <li className="flex items-baseline gap-2">
-              <span className="text-accent-link">{'\u2713'}</span> No API keys to manage
-            </li>
-            <li className="flex items-baseline gap-2">
-              <span className="text-accent-link">{'\u2713'}</span> Analyses shared across all
-              users {'\u2014'} fewer duplicate API calls
-            </li>
-            <li className="flex items-baseline gap-2">
-              <span className="text-accent-link">{'\u2713'}</span> Priority support
-            </li>
-          </ul>
-          {user?.plan === "PAID" ? (
-            <form action={createPortalSession}>
-              <button
-                type="submit"
-                className={buttonVariants({
-                  className:
-                    "w-full text-xs font-mono tracking-wider uppercase",
-                })}
-              >
-                Manage Billing
-              </button>
-            </form>
-          ) : (
-            <form action={createCheckoutSession}>
-              <button
-                type="submit"
-                className={buttonVariants({
-                  className:
-                    "w-full text-xs font-mono tracking-wider uppercase",
-                })}
-              >
-                {user ? "Upgrade to Pro" : "Get Started"}
-              </button>
-            </form>
-          )}
         </div>
       </div>
 

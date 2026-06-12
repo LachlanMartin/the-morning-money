@@ -100,7 +100,8 @@ export async function ingestAnnouncements(
 }
 
 /**
- * Ingests announcements for all unique ASX codes across all watchlists.
+ * Ingests announcements for all unique ASX codes across all watchlists
+ * belonging to users with active (non-expired) accounts.
  */
 export async function ingestAllWatchlistedTickers(): Promise<
   Record<string, IngestResult>
@@ -108,6 +109,16 @@ export async function ingestAllWatchlistedTickers(): Promise<
   const tickers = await prisma.watchlistTicker.findMany({
     distinct: ["asxCode"],
     select: { asxCode: true },
+    where: {
+      watchlist: {
+        user: {
+          OR: [
+            { plan: "PAID" },
+            { trialExpiresAt: { gte: new Date() } },
+          ],
+        },
+      },
+    },
   });
 
   const results: Record<string, IngestResult> = {};
