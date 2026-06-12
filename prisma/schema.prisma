@@ -8,13 +8,14 @@ datasource db {
 }
 
 model User {
-  id               String   @id @default(cuid())
-  supabaseId       String   @unique
-  email            String   @unique
-  stripeCustomerId String?  @unique
-  plan             Plan     @default(FREE)
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  id               String    @id @default(cuid())
+  supabaseId       String    @unique
+  email            String    @unique
+  stripeCustomerId String?   @unique
+  plan             Plan      @default(FREE)
+  trialExpiresAt   DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
   watchlists Watchlist[]
   digestRuns DigestRun[]

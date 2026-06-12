@@ -3,11 +3,10 @@ import { prisma } from "@/lib/prisma";
 import { AddWatchlistForm } from "./AddWatchlistForm";
 import { WatchlistCard } from "./WatchlistCard";
 import { UpgradeToast } from "@/components/UpgradeToast";
-import type { Plan } from "@prisma/client";
 
 const LIMITS = {
-  FREE: { maxWatchlists: 3, maxTickersPerWatchlist: 20 },
-  PAID: { maxWatchlists: 20, maxTickersPerWatchlist: 50, maxTickersTotal: 150 },
+  FREE: { maxDistinctTickers: 20 },
+  PAID: { maxDistinctTickers: 150 },
 } as const;
 
 export default async function DashboardPage() {
@@ -26,6 +25,10 @@ export default async function DashboardPage() {
     0,
   );
 
+  const distinctTickers = new Set(
+    watchlists.flatMap((w) => w.tickers.map((t) => t.asxCode)),
+  ).size;
+
   const limit = LIMITS[user.plan];
   const today = new Date();
   const dateStr = today.toLocaleDateString("en-AU", {
@@ -34,6 +37,10 @@ export default async function DashboardPage() {
     month: "long",
     day: "numeric",
   });
+
+  const trialDaysLeft = user.plan === "FREE" && user.trialExpiresAt
+    ? Math.max(0, Math.ceil((user.trialExpiresAt.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)))
+    : null;
 
   const planBadge =
     user.plan === "PAID"
@@ -47,11 +54,20 @@ export default async function DashboardPage() {
       {/* Dateline */}
       <div className="flex items-center justify-between text-xs font-mono tracking-wider text-muted-foreground pb-3 border-b border-border">
         <span>{dateStr} &middot; ASX Edition</span>
-        <span
-          className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${planBadge}`}
-        >
-          {user.plan === "PAID" ? "Pro" : "Free"} Plan
-        </span>
+        <div className="flex items-center gap-3">
+          {trialDaysLeft !== null && (
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-amber-600 dark:text-amber-400">
+              {trialDaysLeft === 0
+                ? "Trial ended"
+                : `${trialDaysLeft} ${trialDaysLeft === 1 ? "day" : "days"} left`}
+            </span>
+          )}
+          <span
+            className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${planBadge}`}
+          >
+            {user.plan === "PAID" ? "Pro" : "Free"} Plan
+          </span>
+        </div>
       </div>
 
       {/* Dashboard header */}
@@ -74,13 +90,13 @@ export default async function DashboardPage() {
             className="font-heading text-3xl font-extrabold leading-none"
             style={{ fontFamily: "var(--font-heading-family)" }}
           >
-            {watchlists.length}
+            {distinctTickers}
             <span className="text-base font-normal text-muted-foreground">
-              /{limit.maxWatchlists}
+              /{limit.maxDistinctTickers}
             </span>
           </span>
           <span className="text-sm text-muted-foreground uppercase font-mono text-xs tracking-wider">
-            Watchlists
+            Unique Tickers
           </span>
         </div>
         <div className="flex items-baseline gap-1.5">
@@ -88,10 +104,10 @@ export default async function DashboardPage() {
             className="font-heading text-3xl font-extrabold leading-none"
             style={{ fontFamily: "var(--font-heading-family)" }}
           >
-            {tickerCount}
+            {watchlists.length}
           </span>
           <span className="text-sm text-muted-foreground uppercase font-mono text-xs tracking-wider">
-            Tickers Tracked
+            Watchlists
           </span>
         </div>
       </div>
@@ -104,12 +120,6 @@ export default async function DashboardPage() {
       {/* Watchlist grid */}
       {watchlists.length === 0 ? (
         <div className="border border-border p-12 sm:p-16 text-center bg-surface">
-          <div
-            className="font-heading text-5xl text-muted-foreground/40 mb-3"
-            style={{ fontFamily: "var(--font-heading-family)" }}
-          >
-            &Square;
-          </div>
           <h3
             className="font-heading text-xl font-bold mb-2"
             style={{ fontFamily: "var(--font-heading-family)" }}
