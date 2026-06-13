@@ -1,9 +1,8 @@
 import Link from "next/link";
-import { getCurrentUser } from "@/lib/auth";
 import { buttonVariants } from "@/components/ui/button";
 
 export async function Header() {
-  const user = await getCurrentUser();
+  const user = null;
 
   return (
     <header className="sticky top-0 z-50 bg-background border-b-2 border-foreground">
