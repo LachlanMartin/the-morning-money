@@ -1,6 +1,11 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { createServerClient } from "@supabase/ssr";
 
 export async function proxy(request: NextRequest) {
   return NextResponse.next({ request });
 }
+
+export const config = {
+  matcher: [
+    "/((?!_next/static|_next/image|favicon.ico|api/cron/|api/webhooks/|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+  ],
+};
