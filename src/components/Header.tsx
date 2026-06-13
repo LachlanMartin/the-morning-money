@@ -3,7 +3,12 @@ import { getCurrentUser } from "@/lib/auth";
 import { buttonVariants } from "@/components/ui/button";
 
 export async function Header() {
-  const user = await getCurrentUser();
+  let user = null;
+  try {
+    user = await getCurrentUser();
+  } catch {
+    // fall through — render logged-out UI
+  }
 
   return (
     <header className="sticky top-0 z-50 bg-background border-b-2 border-foreground">
