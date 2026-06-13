@@ -4,7 +4,7 @@ import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
 import { PDFParse } from "pdf-parse";
 
 const CURRENT_PROMPT_VERSION = "1.0";
-const MODEL = "claude-sonnet-4-20250514";
+const MODEL = "claude-sonnet-4-6";
 
 // Configure PDF.js worker for Node.js runtime
 try {
