@@ -107,7 +107,7 @@ describe("generateDigestRun", () => {
     expect(result).toBeNull();
   });
 
-  it("returns null when user has tickers but no announcements TODAY", async () => {
+  it("creates empty digest when user has tickers but no announcements TODAY", async () => {
     const watchlist = await prisma.watchlist.create({
       data: { userId, name: "Test" },
     });
@@ -117,10 +117,11 @@ describe("generateDigestRun", () => {
     });
 
     const result = await generateDigestRun(userId, new Date());
-    expect(result).toBeNull();
+    expect(result).not.toBeNull();
+    expect(result!.analysisCount).toBe(0);
   });
 
-  it("returns null when user has tickers and announcements but none are ANALYSED", async () => {
+  it("creates empty digest when user has tickers and announcements but none are ANALYSED", async () => {
     const watchlist = await prisma.watchlist.create({
       data: { userId, name: "Test" },
     });
@@ -141,7 +142,8 @@ describe("generateDigestRun", () => {
     });
 
     const result = await generateDigestRun(userId, today);
-    expect(result).toBeNull();
+    expect(result).not.toBeNull();
+    expect(result!.analysisCount).toBe(0);
   });
 
   it("idempotent: returns null if digest already sent", async () => {

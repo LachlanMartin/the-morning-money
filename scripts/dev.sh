@@ -20,8 +20,11 @@ echo ""
 echo "→ Opening Supabase Studio..."
 open http://127.0.0.1:54323
 
-echo "→ Opening Mailpit (email testing)..."
+echo "→ Opening Mailpit (auth emails)..."
 open http://127.0.0.1:54324
+
+echo "→ Opening Resend (digest emails)..."
+open https://resend.com
 
 echo "→ Starting Next.js dev server..."
 echo "   http://localhost:3000"

@@ -49,8 +49,6 @@ export async function generateDigestRun(
     },
   });
 
-  if (announcements.length === 0) return null;
-
   const analysisIds = announcements.map((a) => a.analysis!.id);
 
   // Create or update digest run
@@ -96,8 +94,6 @@ export async function sendDigest(
     },
   });
 
-  if (analyses.length === 0) return false;
-
   const dateStr = digestRun.date.toLocaleDateString("en-AU", {
     weekday: "long",
     year: "numeric",
@@ -142,6 +138,17 @@ export async function runDailyPipeline(): Promise<{
 }> {
   const errors: string[] = [];
 
+  const dayOfWeek = new Date().getDay();
+  if (dayOfWeek === 0 || dayOfWeek === 6) {
+    return {
+      announcementsFetched: {},
+      analyzed: 0,
+      digestsGenerated: 0,
+      emailsSent: 0,
+      errors: [],
+    };
+  }
+
   // Step 1: Fetch announcements for all watchlisted tickers
   let ingestResults: Record<string, import("@/lib/announcements").IngestResult>;
   try {
@@ -160,6 +167,20 @@ export async function runDailyPipeline(): Promise<{
   const announcementsFetched: Record<string, number> = {};
   for (const [code, result] of Object.entries(ingestResults)) {
     announcementsFetched[code] = result.created;
+  }
+
+  const totalFetched = Object.values(ingestResults).reduce(
+    (sum, r) => sum + r.fetched,
+    0,
+  );
+  if (totalFetched === 0) {
+    return {
+      announcementsFetched,
+      analyzed: 0,
+      digestsGenerated: 0,
+      emailsSent: 0,
+      errors: [],
+    };
   }
 
   // Step 2: Analyze unprocessed announcements
