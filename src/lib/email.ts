@@ -1,4 +1,5 @@
 import { getResendClient } from "@/lib/resend";
+import { siteUrl } from "@/lib/utils";
 
 const FROM_ADDRESS =
   process.env.RESEND_FROM_ADDRESS || "Morning Money <daily@morning-money.app>";
@@ -139,11 +140,7 @@ export async function sendDigestEmail(
   idempotencyKey: string,
 ): Promise<boolean> {
   const resend = getResendClient();
-  const siteUrl =
-    process.env.NEXT_PUBLIC_SITE_URL ??
-    process.env.NEXT_PUBLIC_VERCEL_URL ??
-    "https://the-morning-money.vercel.app";
-  const unsubscribeUrl = `${siteUrl}/unsubscribe`;
+  const unsubscribeUrl = `${siteUrl()}/unsubscribe`;
 
   const { error } = await resend.emails.send({
     from: FROM_ADDRESS,
