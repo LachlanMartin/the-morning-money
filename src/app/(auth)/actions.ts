@@ -51,7 +51,7 @@ export async function signUp(
 
   try {
     const supabase = await createClient();
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
@@ -61,14 +61,12 @@ export async function signUp(
 
     if (error) return { error: error.message };
 
-    // Emails may be confirmed — if so, no session is returned.
-    // Force a session check to ensure cookies are set before redirecting.
-    const { data: sessionData } = await supabase.auth.getSession();
-
-    if (!sessionData.session) {
+    // Email confirmation enabled — no session, send to check-email page
+    if (!data.session) {
       redirect("/signup/check-email");
     }
 
+    // Email confirmation disabled — session returned, go to dashboard
     revalidatePath("/", "layout");
     redirect("/dashboard");
   } catch (err: unknown) {
