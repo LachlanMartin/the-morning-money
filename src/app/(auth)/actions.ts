@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { isRedirectError } from "next/dist/client/components/redirect-error";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { siteUrl } from "@/lib/utils";
@@ -28,7 +29,7 @@ export async function signIn(
     revalidatePath("/", "layout");
     redirect(next);
   } catch (err: unknown) {
-    console.error("signIn error:", err);
+    if (isRedirectError(err)) throw err;
     const message = err instanceof Error ? err.message : String(err);
     return { error: message };
   }
@@ -61,7 +62,7 @@ export async function signUp(
     revalidatePath("/", "layout");
     redirect("/dashboard");
   } catch (err: unknown) {
-    console.error("signUp error:", err);
+    if (isRedirectError(err)) throw err;
     const message = err instanceof Error ? err.message : String(err);
     return { error: message };
   }
@@ -97,7 +98,7 @@ export async function forgotPassword(
 
     return { error: null, sent: true };
   } catch (err: unknown) {
-    console.error("forgotPassword error:", err);
+    if (isRedirectError(err)) throw err;
     const message = err instanceof Error ? err.message : String(err);
     return { error: message, sent: false };
   }
