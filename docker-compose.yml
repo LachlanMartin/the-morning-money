@@ -1,0 +1,48 @@
+services:
+  db:
+    image: pgvector/pgvector:pg17
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: morningmoney
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/morningmoney
+      - DIRECT_URL=postgresql://postgres:postgres@db:5432/morningmoney
+      - NEXT_PUBLIC_SUPABASE_URL
+      - NEXT_PUBLIC_SUPABASE_ANON_KEY
+      - SUPABASE_SERVICE_ROLE_KEY
+      - ANTHROPIC_API_KEY
+      - AWS_REGION
+      - AWS_S3_BUCKET
+      - AWS_ACCESS_KEY_ID
+      - AWS_SECRET_ACCESS_KEY
+      - RESEND_API_KEY
+      - RESEND_FROM_ADDRESS
+      - STRIPE_SECRET_KEY
+      - STRIPE_WEBHOOK_SECRET
+      - NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
+      - STRIPE_PRICE_ID
+      - CRON_SECRET
+      - NEXT_PUBLIC_SITE_URL
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pgdata:

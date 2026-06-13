@@ -46,7 +46,29 @@ User → Watchlist → WatchlistTicker
 
 ## Getting Started
 
-### Prerequisites
+### Quick Start (Docker)
+
+```bash
+git clone https://github.com/LachlanMartin/the-morning-money
+cd the-morning-money
+cp .env.example .env   # fill in your API keys
+
+docker compose up -d   # starts Postgres + the app
+```
+
+The app will be available at [localhost:3000](http://localhost:3000).
+
+Run database migrations the first time:
+
+```bash
+docker compose exec app npx prisma migrate deploy
+```
+
+> **Note:** Docker runs the app but still requires a Supabase project (free tier) for authentication. See [.env.example](.env.example) for environment variable details.
+
+### Local Development (without Docker)
+
+#### Prerequisites
 
 - Node.js 20+
 - Docker (for local Supabase) **or** a remote Supabase project (free tier works)
@@ -54,11 +76,11 @@ User → Watchlist → WatchlistTicker
 - (Optional) Anthropic API key for analysis
 - (Optional) Resend API key for emails
 
-### Setup
+#### Setup
 
 ```bash
-git clone <your-repo>
-cd morning-money
+git clone https://github.com/LachlanMartin/the-morning-money
+cd the-morning-money
 npm install
 ```
 
@@ -120,6 +142,29 @@ To switch back to your remote Supabase project, swap the commented blocks in
 | `npx prisma migrate dev` | Create migration after schema changes    |
 | `npx prisma generate`    | Regenerate Prisma client                 |
 | `npx prisma studio`      | Open database UI                         |
+
+## Self-Hosting
+
+The app can be self-hosted via Docker or on any Node.js platform.
+
+### Required Services
+
+| Service           | Purpose                   | Free Tier Available |
+| ----------------- | ------------------------- | ------------------- |
+| Supabase          | Auth + database           | Yes (cloud)         |
+| Anthropic Claude  | AI analysis               | No (paid API)       |
+| Resend            | Email delivery            | Yes (100 emails/day)|
+| AWS S3            | PDF storage               | Yes (free tier)     |
+| Stripe            | Payment processing        | Yes (test mode)     |
+
+### Without Supabase Cloud
+
+If you want to run everything locally without cloud services:
+
+1. **Database:** The docker-compose includes Postgres with pgvector.
+2. **Auth:** Run Supabase locally (`supabase start`) or self-host [Supabase Auth](https://supabase.com/docs/guides/self-hosting/docker).
+3. **Email:** Use Mailpit (included in local Supabase) for development, or any Resend-compatible SMTP.
+4. **Storage:** Announcement PDFs can be stored in the local filesystem by omitting AWS credentials.
 
 ## Deployment
 
