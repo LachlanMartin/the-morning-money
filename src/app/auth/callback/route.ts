@@ -1,11 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 
-// Handles Supabase email-confirmation links (?code=…) and password-reset
-// links (?token_hash=…&type=recovery). For password reset, the token is
-// consumed by Supabase's verify endpoint before redirecting here, so we
-// check for an existing session as a fallback. Redirect to ?next or
-// /dashboard.
 export async function GET(request: NextRequest) {
   const url = new URL(request.url);
   const code = url.searchParams.get("code");
@@ -36,8 +31,10 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(new URL("/login?error=auth", url.origin));
   }
 
-  // Already authenticated (token consumed by Supabase before redirect) —
-  // just forward to the next page
+  // Fallback: Supabase may have already set the session via the redirect.
+  // Call getSession() to trigger the middleware-level cookie exchange, then
+  // check getUser() for the session.
+  await supabase.auth.getSession();
   const { data } = await supabase.auth.getUser();
   if (data.user) {
     return NextResponse.redirect(new URL(next, url.origin));
