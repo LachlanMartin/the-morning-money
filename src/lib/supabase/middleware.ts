@@ -39,9 +39,13 @@ export async function updateSession(request: NextRequest) {
 
   // Refresh session token. Per @supabase/ssr docs, do not run code between
   // createServerClient and getUser — auth state can desync.
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  let user = null;
+  try {
+    const result = await supabase.auth.getUser();
+    user = result.data.user;
+  } catch (e) {
+    console.error("getUser error:", e);
+  }
 
   const { pathname } = request.nextUrl;
   const isPublic = PUBLIC_PATHS.some(
