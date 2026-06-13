@@ -166,16 +166,7 @@ If you want to run everything locally without cloud services:
 3. **Email:** Use Mailpit (included in local Supabase) for development, or any Resend-compatible SMTP.
 4. **Storage:** Announcement PDFs can be stored in the local filesystem by omitting AWS credentials.
 
-## Deployment
-
-Deploy to Vercel with zero configuration:
-
-```bash
-npm run build    # verify it builds
-npx vercel       # deploy
-```
-
-Set all env vars from `.env.example` in your Vercel project dashboard.
+email.
 
 ## Project Status
 
@@ -187,6 +178,7 @@ Set all env vars from `.env.example` in your Vercel project dashboard.
 - [x] Scheduled cron
 - [x] Stripe billing
 - [x] Production polish
+- [ ] Local mode (`NEXT_PUBLIC_APP_MODE=local`) — [#10](https://github.com/LachlanMartin/the-morning-money/issues/10)
 
 See [GitHub Issues](https://github.com/LachlanMartin/the-morning-money/issues) for remaining tasks and future ideas.
 
