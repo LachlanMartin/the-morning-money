@@ -28,58 +28,64 @@ export async function Header() {
           <nav className="absolute top-full left-0 right-0 bg-background border-b-2 border-foreground p-4 flex flex-col gap-3">
             {user ? (
               <>
-                <span className="text-sm text-muted-foreground font-mono text-xs tracking-wider">
-                  {user.email}
-                </span>
-                {user.plan === "FREE" && (
-                  <Link
-                    href="/pricing"
-                    className="text-sm text-accent-link hover:text-accent-hover transition-colors font-mono text-xs uppercase tracking-wider"
-                  >
-                    Upgrade
-                  </Link>
-                )}
-                <form action="/auth/signout" method="post">
-                  <button
-                    type="submit"
-                    className={buttonVariants({
-                      variant: "outline",
-                      size: "sm",
-                      className:
-                        "w-full text-xs font-mono tracking-wider uppercase h-9 transition-all hover:bg-foreground hover:text-background",
-                    })}
-                  >
-                    Sign Out
-                  </button>
-                </form>
-              </>
-            ) : (
-              <>
+            <span className="text-sm text-muted-foreground font-mono text-xs tracking-wider">
+                {user.email}
+              </span>
+              <Link
+                href="/dashboard/reports"
+                className="text-sm text-muted-foreground hover:text-accent-link transition-colors font-mono text-xs uppercase tracking-wider"
+              >
+                Reports
+              </Link>
+              {user.plan === "FREE" && (
                 <Link
                   href="/pricing"
-                  className="text-sm text-muted-foreground hover:text-accent-link transition-colors font-mono text-xs uppercase tracking-wider"
+                  className="text-sm text-accent-link hover:text-accent-hover transition-colors font-mono text-xs uppercase tracking-wider"
                 >
-                  Pricing
+                  Upgrade
                 </Link>
-                <Link
-                  href="/login"
-                  className="text-sm text-muted-foreground hover:text-accent-link transition-colors font-mono text-xs uppercase tracking-wider"
-                >
-                  Sign In
-                </Link>
-                <Link
-                  href="/signup"
+              )}
+              <form action="/auth/signout" method="post">
+                <button
+                  type="submit"
                   className={buttonVariants({
+                    variant: "outline",
                     size: "sm",
                     className:
-                      "w-full text-xs font-mono tracking-wider uppercase h-9 transition-all",
+                      "w-full text-xs font-mono tracking-wider uppercase h-9 transition-all hover:bg-foreground hover:text-background",
                   })}
                 >
-                  Get Started
-                </Link>
-              </>
-            )}
-          </nav>
+                  Sign Out
+                </button>
+              </form>
+            </>
+          ) : (
+            <>
+              <Link
+                href="/pricing"
+                className="text-sm text-muted-foreground hover:text-accent-link transition-colors font-mono text-xs uppercase tracking-wider"
+              >
+                Pricing
+              </Link>
+              <Link
+                href="/login"
+                className="text-sm text-muted-foreground hover:text-accent-link transition-colors font-mono text-xs uppercase tracking-wider"
+              >
+                Sign In
+              </Link>
+              <Link
+                href="/signup"
+                className={buttonVariants({
+                  size: "sm",
+                  className:
+                    "w-full text-xs font-mono tracking-wider uppercase h-9 transition-all",
+                })}
+              >
+                Get Started
+              </Link>
+            </>
+          )}
+        </nav>
         </details>
 
         {/* Desktop nav */}
@@ -89,6 +95,12 @@ export async function Header() {
               <span className="text-sm text-muted-foreground font-mono text-xs tracking-wider hidden sm:inline">
                 {user.email}
               </span>
+              <Link
+                href="/dashboard/reports"
+                className="text-sm text-muted-foreground hover:text-accent-link transition-colors font-mono text-xs uppercase tracking-wider"
+              >
+                Reports
+              </Link>
               {user.plan === "FREE" && (
                 <Link
                   href="/pricing"
