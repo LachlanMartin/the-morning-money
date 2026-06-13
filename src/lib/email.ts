@@ -139,7 +139,11 @@ export async function sendDigestEmail(
   idempotencyKey: string,
 ): Promise<boolean> {
   const resend = getResendClient();
-  const unsubscribeUrl = `${process.env.NEXT_PUBLIC_SITE_URL || "https://morning-money.app"}/unsubscribe`;
+  const siteUrl =
+    process.env.NEXT_PUBLIC_SITE_URL ??
+    process.env.NEXT_PUBLIC_VERCEL_URL ??
+    "https://the-morning-money.vercel.app";
+  const unsubscribeUrl = `${siteUrl}/unsubscribe`;
 
   const { error } = await resend.emails.send({
     from: FROM_ADDRESS,

@@ -36,8 +36,8 @@ export async function createCheckoutSession(): Promise<void> {
       },
     ],
     metadata: { userId: user.id },
-    success_url: `${process.env.NEXT_PUBLIC_SITE_URL || "https://morning-money.app"}/dashboard?upgraded=true`,
-    cancel_url: `${process.env.NEXT_PUBLIC_SITE_URL || "https://morning-money.app"}/pricing`,
+    success_url: `${process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_VERCEL_URL || "https://the-morning-money.vercel.app"}/dashboard?upgraded=true`,
+    cancel_url: `${process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_VERCEL_URL || "https://the-morning-money.vercel.app"}/pricing`,
   });
 
   if (session.url) redirect(session.url);
@@ -50,7 +50,7 @@ export async function createPortalSession(): Promise<void> {
   const stripe = getStripeClient();
   const session = await stripe.billingPortal.sessions.create({
     customer: user.stripeCustomerId,
-    return_url: `${process.env.NEXT_PUBLIC_SITE_URL || "https://morning-money.app"}/dashboard`,
+    return_url: `${process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_VERCEL_URL || "https://the-morning-money.vercel.app"}/dashboard`,
   });
 
   if (session.url) redirect(session.url);

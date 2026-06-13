@@ -1,7 +1,6 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 
@@ -75,10 +74,11 @@ export async function forgotPassword(
     return { error: "Email is required.", sent: false };
   }
 
-  const headersList = await headers();
-  const host = headersList.get("host") ?? process.env.NEXT_PUBLIC_SITE_URL ?? "localhost:3000";
-  const protocol = process.env.NODE_ENV === "production" ? "https" : "http";
-  const redirectTo = `${protocol}://${host}/auth/callback?next=/reset-password`;
+  const origin =
+    process.env.NEXT_PUBLIC_SITE_URL ??
+    process.env.NEXT_PUBLIC_VERCEL_URL ??
+    "https://the-morning-money.vercel.app";
+  const redirectTo = `${origin}/auth/callback?next=/reset-password`;
 
   const supabase = await createClient();
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
