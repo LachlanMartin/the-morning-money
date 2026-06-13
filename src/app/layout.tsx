@@ -18,6 +18,9 @@ export const metadata: Metadata = {
   title: "The Morning Money",
   description:
     "Plain-English summaries of ASX announcements for the tickers you watch.",
+  icons: {
+    icon: "/favicon.svg",
+  },
 };
 
 export const dynamic = "force-dynamic";
