@@ -4,10 +4,14 @@ import { createClient } from "@/lib/supabase/server";
 import { buttonVariants } from "@/components/ui/button";
 
 export default async function HomePage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  let user = null;
+  try {
+    const supabase = await createClient();
+    const result = await supabase.auth.getUser();
+    user = result.data.user;
+  } catch {
+    // supabase unreachable or error — show landing page
+  }
 
   if (user) redirect("/dashboard");
 
