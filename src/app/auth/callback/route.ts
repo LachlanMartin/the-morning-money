@@ -2,8 +2,10 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 
 // Handles Supabase email-confirmation links (?code=…) and password-reset
-// links (?token_hash=…&type=recovery). After exchange, redirect to ?next
-// or /dashboard.
+// links (?token_hash=…&type=recovery). For password reset, the token is
+// consumed by Supabase's verify endpoint before redirecting here, so we
+// check for an existing session as a fallback. Redirect to ?next or
+// /dashboard.
 export async function GET(request: NextRequest) {
   const url = new URL(request.url);
   const code = url.searchParams.get("code");
@@ -13,6 +15,16 @@ export async function GET(request: NextRequest) {
 
   const supabase = await createClient();
 
+  // Signup confirmation — exchange code for session
+  if (code) {
+    const { error } = await supabase.auth.exchangeCodeForSession(code);
+    if (!error) {
+      return NextResponse.redirect(new URL(next, url.origin));
+    }
+    return NextResponse.redirect(new URL("/login?error=auth", url.origin));
+  }
+
+  // Password reset — exchange token_hash for session
   if (type === "recovery" && tokenHash) {
     const { error } = await supabase.auth.verifyOtp({
       type: "recovery",
@@ -24,11 +36,11 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(new URL("/login?error=auth", url.origin));
   }
 
-  if (code) {
-    const { error } = await supabase.auth.exchangeCodeForSession(code);
-    if (!error) {
-      return NextResponse.redirect(new URL(next, url.origin));
-    }
+  // Already authenticated (token consumed by Supabase before redirect) —
+  // just forward to the next page
+  const { data } = await supabase.auth.getUser();
+  if (data.user) {
+    return NextResponse.redirect(new URL(next, url.origin));
   }
 
   return NextResponse.redirect(new URL("/login?error=auth", url.origin));
