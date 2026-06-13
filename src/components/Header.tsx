@@ -1,8 +1,9 @@
 import Link from "next/link";
+import { getCurrentUser } from "@/lib/auth";
 import { buttonVariants } from "@/components/ui/button";
 
 export async function Header() {
-  const user = null;
+  const user = await getCurrentUser();
 
   return (
     <header className="sticky top-0 z-50 bg-background border-b-2 border-foreground">
@@ -25,55 +26,117 @@ export async function Header() {
             </div>
           </summary>
           <nav className="absolute top-full left-0 right-0 bg-background border-b-2 border-foreground p-4 flex flex-col gap-3">
-            <Link
-              href="/pricing"
-              className="text-sm text-muted-foreground hover:text-accent-link transition-colors font-mono text-xs uppercase tracking-wider"
-            >
-              Pricing
-            </Link>
-            <Link
-              href="/login"
-              className="text-sm text-muted-foreground hover:text-accent-link transition-colors font-mono text-xs uppercase tracking-wider"
-            >
-              Sign In
-            </Link>
-            <Link
-              href="/signup"
-              className={buttonVariants({
-                size: "sm",
-                className:
-                  "w-full text-xs font-mono tracking-wider uppercase h-9 transition-all",
-              })}
-            >
-              Get Started
-            </Link>
+            {user ? (
+              <>
+                <span className="text-sm text-muted-foreground font-mono text-xs tracking-wider">
+                  {user.email}
+                </span>
+                {user.plan === "FREE" && (
+                  <Link
+                    href="/pricing"
+                    className="text-sm text-accent-link hover:text-accent-hover transition-colors font-mono text-xs uppercase tracking-wider"
+                  >
+                    Upgrade
+                  </Link>
+                )}
+                <form action="/auth/signout" method="post">
+                  <button
+                    type="submit"
+                    className={buttonVariants({
+                      variant: "outline",
+                      size: "sm",
+                      className:
+                        "w-full text-xs font-mono tracking-wider uppercase h-9 transition-all hover:bg-foreground hover:text-background",
+                    })}
+                  >
+                    Sign Out
+                  </button>
+                </form>
+              </>
+            ) : (
+              <>
+                <Link
+                  href="/pricing"
+                  className="text-sm text-muted-foreground hover:text-accent-link transition-colors font-mono text-xs uppercase tracking-wider"
+                >
+                  Pricing
+                </Link>
+                <Link
+                  href="/login"
+                  className="text-sm text-muted-foreground hover:text-accent-link transition-colors font-mono text-xs uppercase tracking-wider"
+                >
+                  Sign In
+                </Link>
+                <Link
+                  href="/signup"
+                  className={buttonVariants({
+                    size: "sm",
+                    className:
+                      "w-full text-xs font-mono tracking-wider uppercase h-9 transition-all",
+                  })}
+                >
+                  Get Started
+                </Link>
+              </>
+            )}
           </nav>
         </details>
 
         {/* Desktop nav */}
         <nav className="hidden sm:flex items-center gap-6">
-          <Link
-            href="/pricing"
-            className="text-sm text-muted-foreground hover:text-accent-link transition-colors font-mono text-xs uppercase tracking-wider"
-          >
-            Pricing
-          </Link>
-          <Link
-            href="/login"
-            className="text-sm text-muted-foreground hover:text-accent-link transition-colors font-mono text-xs uppercase tracking-wider"
-          >
-            Sign In
-          </Link>
-          <Link
-            href="/signup"
-            className={buttonVariants({
-              size: "sm",
-              className:
-                "text-xs font-mono tracking-wider uppercase h-8 transition-all",
-            })}
-          >
-            Get Started
-          </Link>
+          {user ? (
+            <>
+              <span className="text-sm text-muted-foreground font-mono text-xs tracking-wider hidden sm:inline">
+                {user.email}
+              </span>
+              {user.plan === "FREE" && (
+                <Link
+                  href="/pricing"
+                  className="text-sm text-accent-link hover:text-accent-hover transition-colors font-mono text-xs uppercase tracking-wider"
+                >
+                  Upgrade
+                </Link>
+              )}
+              <form action="/auth/signout" method="post">
+                <button
+                  type="submit"
+                  className={buttonVariants({
+                    variant: "outline",
+                    size: "sm",
+                    className:
+                      "text-xs font-mono tracking-wider uppercase h-8 transition-all hover:bg-foreground hover:text-background",
+                  })}
+                >
+                  Sign Out
+                </button>
+              </form>
+            </>
+          ) : (
+            <>
+              <Link
+                href="/pricing"
+                className="text-sm text-muted-foreground hover:text-accent-link transition-colors font-mono text-xs uppercase tracking-wider"
+              >
+                Pricing
+              </Link>
+              <Link
+                href="/login"
+                className="text-sm text-muted-foreground hover:text-accent-link transition-colors font-mono text-xs uppercase tracking-wider"
+              >
+                Sign In
+              </Link>
+              <Link
+                href="/signup"
+                className={buttonVariants({
+                  size: "sm",
+                  className:
+                    "text-xs font-mono tracking-wider uppercase h-8 transition-all",
+                })}
+              >
+                Get Started
+              </Link>
+            </>
+          )}
         </nav>
       </div>
     </header>
