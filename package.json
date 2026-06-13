@@ -6,7 +6,7 @@
   "repository": "github:LachlanMartin/morning-money",
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "prisma generate && next build",
     "start": "next start",
     "lint": "eslint",
     "dev:full": "bash scripts/dev.sh",
