@@ -19,13 +19,19 @@ export async function signIn(
     return { error: "Email and password are required." };
   }
 
-  const supabase = await createClient();
-  const { error } = await supabase.auth.signInWithPassword({ email, password });
+  try {
+    const supabase = await createClient();
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
 
-  if (error) return { error: error.message };
+    if (error) return { error: error.message };
 
-  revalidatePath("/", "layout");
-  redirect(next);
+    revalidatePath("/", "layout");
+    redirect(next);
+  } catch (err: unknown) {
+    console.error("signIn error:", err);
+    const message = err instanceof Error ? err.message : String(err);
+    return { error: message };
+  }
 }
 
 export async function signUp(
@@ -42,20 +48,23 @@ export async function signUp(
     return { error: "Password must be at least 8 characters." };
   }
 
-  const supabase = await createClient();
-  const { data, error } = await supabase.auth.signUp({ email, password });
+  try {
+    const supabase = await createClient();
+    const { data, error } = await supabase.auth.signUp({ email, password });
 
-  if (error) return { error: error.message };
+    if (error) return { error: error.message };
 
-  // If email confirmations are enabled, no session is returned and the user
-  // must click the link in their email. Otherwise, the session is set and we
-  // can drop them on the dashboard.
-  if (!data.session) {
-    redirect("/signup/check-email");
+    if (!data.session) {
+      redirect("/signup/check-email");
+    }
+
+    revalidatePath("/", "layout");
+    redirect("/dashboard");
+  } catch (err: unknown) {
+    console.error("signUp error:", err);
+    const message = err instanceof Error ? err.message : String(err);
+    return { error: message };
   }
-
-  revalidatePath("/", "layout");
-  redirect("/dashboard");
 }
 
 export async function signOut() {
@@ -78,14 +87,20 @@ export async function forgotPassword(
   const origin = siteUrl();
   const redirectTo = `${origin}/auth/callback?next=/reset-password`;
 
-  const supabase = await createClient();
-  const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo,
-  });
+  try {
+    const supabase = await createClient();
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo,
+    });
 
-  if (error) return { error: error.message, sent: false };
+    if (error) return { error: error.message, sent: false };
 
-  return { error: null, sent: true };
+    return { error: null, sent: true };
+  } catch (err: unknown) {
+    console.error("forgotPassword error:", err);
+    const message = err instanceof Error ? err.message : String(err);
+    return { error: message, sent: false };
+  }
 }
 
 export async function resetPassword(
