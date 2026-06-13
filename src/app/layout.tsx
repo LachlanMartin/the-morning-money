@@ -20,6 +20,8 @@ export const metadata: Metadata = {
     "Plain-English summaries of ASX announcements for the tickers you watch.",
 };
 
+export const dynamic = "force-dynamic";
+
 export default function RootLayout({
   children,
 }: Readonly<{
