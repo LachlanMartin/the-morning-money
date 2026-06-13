@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 
@@ -62,4 +63,51 @@ export async function signOut() {
   await supabase.auth.signOut();
   revalidatePath("/", "layout");
   redirect("/");
+}
+
+export async function forgotPassword(
+  _prev: AuthState,
+  formData: FormData,
+): Promise<AuthState & { sent: boolean }> {
+  const email = String(formData.get("email") ?? "").trim();
+
+  if (!email) {
+    return { error: "Email is required.", sent: false };
+  }
+
+  const headersList = await headers();
+  const host = headersList.get("host") ?? process.env.NEXT_PUBLIC_SITE_URL ?? "localhost:3000";
+  const protocol = process.env.NODE_ENV === "production" ? "https" : "http";
+  const redirectTo = `${protocol}://${host}/auth/callback?next=/reset-password`;
+
+  const supabase = await createClient();
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo,
+  });
+
+  if (error) return { error: error.message, sent: false };
+
+  return { error: null, sent: true };
+}
+
+export async function resetPassword(
+  _prev: AuthState,
+  formData: FormData,
+): Promise<AuthState & { success: boolean }> {
+  const password = String(formData.get("password") ?? "");
+
+  if (!password) {
+    return { error: "Password is required.", success: false };
+  }
+  if (password.length < 8) {
+    return { error: "Password must be at least 8 characters.", success: false };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.auth.updateUser({ password });
+
+  if (error) return { error: error.message, success: false };
+
+  revalidatePath("/", "layout");
+  redirect("/dashboard");
 }
