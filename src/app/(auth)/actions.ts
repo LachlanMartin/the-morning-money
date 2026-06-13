@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { siteUrl } from "@/lib/utils";
 
 export type AuthState = { error: string | null };
 
@@ -74,10 +75,7 @@ export async function forgotPassword(
     return { error: "Email is required.", sent: false };
   }
 
-  const origin =
-    process.env.NEXT_PUBLIC_SITE_URL ??
-    process.env.NEXT_PUBLIC_VERCEL_URL ??
-    "https://the-morning-money.vercel.app";
+  const origin = siteUrl();
   const redirectTo = `${origin}/auth/callback?next=/reset-password`;
 
   const supabase = await createClient();

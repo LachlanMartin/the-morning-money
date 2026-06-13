@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { getStripeClient } from "@/lib/stripe";
+import { siteUrl } from "@/lib/utils";
 
 export async function createCheckoutSession(): Promise<void> {
   const user = await getCurrentUser();
@@ -36,8 +37,8 @@ export async function createCheckoutSession(): Promise<void> {
       },
     ],
     metadata: { userId: user.id },
-    success_url: `${process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_VERCEL_URL || "https://the-morning-money.vercel.app"}/dashboard?upgraded=true`,
-    cancel_url: `${process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_VERCEL_URL || "https://the-morning-money.vercel.app"}/pricing`,
+    success_url: `${siteUrl()}/dashboard?upgraded=true`,
+    cancel_url: `${siteUrl()}/pricing`,
   });
 
   if (session.url) redirect(session.url);
@@ -50,7 +51,7 @@ export async function createPortalSession(): Promise<void> {
   const stripe = getStripeClient();
   const session = await stripe.billingPortal.sessions.create({
     customer: user.stripeCustomerId,
-    return_url: `${process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_VERCEL_URL || "https://the-morning-money.vercel.app"}/dashboard`,
+    return_url: `${siteUrl()}/dashboard`,
   });
 
   if (session.url) redirect(session.url);
