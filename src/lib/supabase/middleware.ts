@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { cookies } from "next/headers";
 
 const PUBLIC_PATHS = [
   "/",
@@ -14,38 +15,31 @@ const PUBLIC_PATHS = [
 ];
 
 export async function updateSession(request: NextRequest) {
-  let supabaseResponse = NextResponse.next({ request });
+  let response = NextResponse.next({ request });
+
+  const cookieStore = await cookies();
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        getAll() {
-          return request.cookies.getAll();
-        },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value }) =>
-            request.cookies.set(name, value),
-          );
-          supabaseResponse = NextResponse.next({ request });
-          cookiesToSet.forEach(({ name, value, options }) =>
-            supabaseResponse.cookies.set(name, value, options),
-          );
+        getAll: () => cookieStore.getAll(),
+        setAll: (cookiesToSet, headers) => {
+          cookiesToSet.forEach(({ name, value, options }) => {
+            cookieStore.set(name, value, options);
+          });
+          Object.entries(headers).forEach(([key, value]) => {
+            response.headers.set(key, value);
+          });
         },
       },
     },
   );
 
-  // Refresh session token. Per @supabase/ssr docs, do not run code between
-  // createServerClient and getUser — auth state can desync.
-  let user = null;
-  try {
-    const result = await supabase.auth.getUser();
-    user = result.data.user;
-  } catch (e) {
-    console.error("getUser error:", e);
-  }
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
   const { pathname } = request.nextUrl;
   const isPublic = PUBLIC_PATHS.some(
@@ -59,5 +53,5 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  return supabaseResponse;
+  return response;
 }
