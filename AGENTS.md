@@ -28,8 +28,12 @@ Package manager is **pnpm**. Prisma client path: `src/generated/prisma/`.
 | `npx prisma generate` | Regenerate Prisma client |
 | `pnpm run test:watch` | Vitest watch mode |
 | `npx prisma studio` | Database UI (port 51212) |
+| `npx tsx scripts/seed-watchlists.ts` | Seed sample watchlists into DB |
+| `npx tsx scripts/fetch-asx-tickers.ts` | Fetch ASX ticker list CSV |
 
 Pre-existing type error in `src/__tests__/analysis-ai.test.ts` (pdf-parse type mismatch) — ignore.
+
+Rebuild Docker after code changes: `docker compose up -d --build app`.
 
 ## Dev setup
 
@@ -41,6 +45,8 @@ pnpm run dev                              # Next.js on :3000
 Auth: single-user, auto-created from `LOCAL_USER_EMAIL` env var. No real auth middleware — proxy.ts is a pass-through.
 
 Docker build uses `output: "standalone"` when `DOCKER_BUILD=1` (next.config.ts).
+
+`.env` is gitignored (`.env*` in `.gitignore`). Secrets stay local.
 
 ## Prisma 7 connection layout
 
@@ -74,6 +80,14 @@ The cron endpoint may retry. Preserve idempotency hooks:
 
 - `Announcement.sourceHash` is unique — dedupe announcements by hash before insert.
 - `DigestRun(userId, date)` is unique — email sent at most once per user/day, subsequent runs skip.
+
+## PDF parsing (known gotcha)
+
+`pdf-parse` v2 depends on `pdfjs-dist` which needs `DOMMatrix` (a browser API). In Node.js, import crashes unless polyfilled first. The fix in `src/lib/analysis.ts`:
+- Lazy `import("pdf-parse")` after setting `globalThis.DOMMatrix`
+- Static import at module level will crash in Docker builds
+
+Don't revert to a static `import { PDFParse } from "pdf-parse"`.
 
 ## Storage
 
