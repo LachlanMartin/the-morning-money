@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="public/favicon.svg" alt="The Morning Money" width="64">
+  <img src="public/favicon.svg" alt="The Morning Money" width="128">
 </p>
 
 <h1 align="center">The Morning Money</h1>
