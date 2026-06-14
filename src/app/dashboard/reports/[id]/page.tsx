@@ -55,9 +55,7 @@ export default async function ReportDetailPage({
     <div className="mx-auto w-full max-w-5xl px-6 py-8">
       {/* Dateline */}
       <div className="flex items-center justify-between text-xs font-mono tracking-wider text-muted-foreground pb-3 border-b border-border">
-        <span>
-          {dateStr} &middot; ASX Edition
-        </span>
+        <span>{dateStr} &middot; ASX Edition</span>
       </div>
 
       {/* Masthead */}

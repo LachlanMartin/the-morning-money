@@ -1,17 +1,37 @@
 import { prisma } from "@/lib/prisma";
 import { chat, getModelName } from "@/lib/ollama";
 import { readPdf, isLocalKey } from "@/lib/storage";
-import { PDFParse } from "pdf-parse";
 
 const CURRENT_PROMPT_VERSION = "1.0";
 
-// Configure PDF.js worker for Node.js runtime
-try {
-  PDFParse.setWorker(
-    new URL("pdf-parse/dist/pdf-parse/esm/pdf.worker.mjs", `file://${process.cwd()}/node_modules/`).href,
-  );
-} catch {
-  // Worker config is best-effort; PDFParse will use fallback
+// pdfjs-dist needs browser DOMMatrix in Node.js — polyfill at first use
+function polyfillDomMatrix() {
+  if (typeof globalThis.DOMMatrix !== "undefined") return;
+  globalThis.DOMMatrix = class {
+    a = 1; b = 0; c = 0; d = 1; e = 0; f = 0;
+    static fromMatrix() { return new this(); }
+    static fromFloat64Array() { return new this(); }
+    static fromFloat32Array() { return new this(); }
+  } as unknown as typeof globalThis.DOMMatrix;
+}
+
+let pdfParsePromise: ReturnType<typeof importPdfParse> | undefined;
+async function importPdfParse() {
+  polyfillDomMatrix();
+  const mod = await import("pdf-parse");
+  try {
+    mod.PDFParse.setWorker(
+      new URL("pdf-parse/dist/pdf-parse/esm/pdf.worker.mjs", `file://${process.cwd()}/node_modules/`).href,
+    );
+  } catch {
+    // Worker config is best-effort
+  }
+  return mod.PDFParse;
+}
+
+function getPDFParse(): ReturnType<typeof importPdfParse> {
+  if (!pdfParsePromise) pdfParsePromise = importPdfParse();
+  return pdfParsePromise;
 }
 
 const SYSTEM_PROMPT = `You are a financial news analyst at The Morning Money, a service that provides plain-English summaries of ASX (Australian Securities Exchange) announcements.
@@ -72,6 +92,7 @@ async function fetchPdfBuffer(key: string): Promise<Buffer> {
 }
 
 async function extractPdfText(buffer: Buffer): Promise<string> {
+  const PDFParse = await getPDFParse();
   const uint8 = new Uint8Array(buffer);
   const parser = new PDFParse(uint8);
   const result = await parser.getText();

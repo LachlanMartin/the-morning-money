@@ -26,6 +26,7 @@ Package manager is **pnpm**. Prisma client path: `src/generated/prisma/`.
 | `./scripts/trigger-digest.sh` | Run daily digest pipeline manually |
 | `npx prisma migrate dev` | Create migration after schema changes |
 | `npx prisma generate` | Regenerate Prisma client |
+| `pnpm run test:watch` | Vitest watch mode |
 | `npx prisma studio` | Database UI (port 51212) |
 
 Pre-existing type error in `src/__tests__/analysis-ai.test.ts` (pdf-parse type mismatch) — ignore.
@@ -45,8 +46,9 @@ Docker build uses `output: "standalone"` when `DOCKER_BUILD=1` (next.config.ts).
 
 Connection URLs are **not** in `schema.prisma` — the `datasource db` block declares `provider` only.
 
-- Migrations: `DIRECT_URL` (port 5432) via `prisma.config.ts` `datasource.url`.
-- Runtime: `DATABASE_URL` (port 6543, `pgbouncer=true`) via `PrismaPg` adapter in `src/lib/prisma.ts`.
+- Migrations: `DIRECT_URL` via `prisma.config.ts` `datasource.url`.
+- Runtime: `DATABASE_URL` via `PrismaPg` adapter in `src/lib/prisma.ts`.
+- These can differ (e.g. direct vs pooled) — see `.env.example` for defaults.
 
 ## Next.js 16 conventions
 
@@ -64,7 +66,7 @@ The cron endpoint `GET /api/cron/daily-digest` (Bearer `CRON_SECRET`) runs 4 ste
 
 Automated by the `cron` sidecar in docker-compose.yml — runs at 10am weekdays. Depends on `app` container. For local dev, trigger manually with `./scripts/trigger-digest.sh`.
 
-Skips weekends and public holidays. Only processes tickers belonging to active (paid/trial) users.
+Skips weekends (`dayOfWeek === 0 || 6` in `digest.ts`). No public holiday logic. Only processes tickers belonging to active (paid/trial) users.
 
 ## Idempotency
 
