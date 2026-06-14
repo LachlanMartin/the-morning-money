@@ -2,7 +2,7 @@
 
 Plain-English summaries of ASX announcements for the tickers you watch. Delivered every morning.
 
-Self-hosted, single-user, zero-auth. Clone, set two API keys, and run.
+**Zero external accounts required.** `git clone && docker compose up` gives you a fully working app — local LLM, local email, local storage.
 
 ---
 
@@ -10,8 +10,8 @@ Self-hosted, single-user, zero-auth. Clone, set two API keys, and run.
 
 - **Watchlist Manager** — create watchlists, add/remove ASX tickers (e.g. BHP, CBA, TLS)
 - **Announcement Ingestion** — scrapes ASX Market Announcements Platform for today's PDFs
-- **AI Analysis** — per-announcement summaries via Anthropic Claude
-- **Daily Digest** — morning email of analysed announcements via Resend
+- **AI Analysis** — per-announcement summaries via local LLM (Ollama)
+- **Daily Digest** — morning email of analysed announcements via SMTP (Mailpit by default)
 
 ## Tech Stack
 
@@ -21,54 +21,41 @@ Self-hosted, single-user, zero-auth. Clone, set two API keys, and run.
 | Language  | TypeScript (strict)         |
 | Styling   | Tailwind CSS v4, shadcn/ui  |
 | Database  | PostgreSQL + Prisma 7       |
-| AI        | Anthropic Claude            |
-| Email     | Resend                      |
-| Storage   | AWS S3 (optional)           |
+| AI        | Ollama (local LLM)          |
+| Email     | Nodemailer + SMTP           |
+| Storage   | Local filesystem            |
 
 ## Architecture
-
-### Data Flow
 
 ```mermaid
 flowchart TB
     subgraph Client["Browser"]
-        UI["Next.js App Router\nPages + Server Components"]
+        UI["Next.js App Router"]
     end
 
-    subgraph Core["Core Application"]
-        direction TB
-        WL["Watchlist Manager\nCRUD + Ticker Tracking"]
-        ASX["ASX Scraper\nMarket Announcements Platform"]
-        Analysis["AI Analysis Pipeline\nAnthropic Claude"]
-        Digest["Digest Generator\nPer-User, Per-Day"]
+    subgraph Core["Application"]
+        WL["Watchlist Manager"]
+        ASX["ASX Scraper"]
+        Analysis["AI Analysis\nOllama (local LLM)"]
+        Digest["Digest Generator"]
     end
 
-    subgraph Infra["Infrastructure"]
-        DB[("PostgreSQL\nDocker")]
-        S3["AWS S3\nPDF Storage (optional)"]
-        Resend["Resend\nEmail Delivery"]
-        Cron["Cron Worker\nDaily Trigger"]
+    subgraph Infra["Docker Containers"]
+        DB[("PostgreSQL\npgvector")]
+        O["Ollama\nLocal LLM"]
+        M["Mailpit\nSMTP + Web UI"]
     end
 
     UI --> WL
     WL --> DB
-    Cron --> ASX
-    ASX --> S3
     ASX --> DB
     ASX --> Analysis
+    Analysis --> O
     Analysis --> DB
-    Cron --> Digest
     Digest --> DB
-    Digest --> Resend
-    Digest --> Analysis
+    Digest --> M
     WL --> Digest
 ```
-
-### Key Design Decisions
-
-- **Per-announcement analysis, not per-user**: announcements are analysed once per ticker (O(announcements) cost, not O(users)). All watchers of a ticker share the same analysis.
-- **AFSL-compliant**: analysis is general information + sentiment only, never personalised advice. No user portfolio context is fed to the model.
-- **Single-user**: the app auto-creates one local user from `LOCAL_USER_EMAIL`. No signups, no logins, no session management.
 
 ## Getting Started
 
@@ -77,84 +64,108 @@ flowchart TB
 ```bash
 git clone https://github.com/LachlanMartin/the-morning-money
 cd the-morning-money
-cp .env.example .env   # fill in your API keys
+cp .env.example .env
 
-docker compose up -d   # starts Postgres + the app
+docker compose up -d   # starts Postgres + Ollama + Mailpit + the app
+```
+
+Run database migrations and pull the LLM model (one-time):
+
+```bash
+docker compose exec app npx prisma migrate deploy
+docker compose exec ollama ollama pull gemma3:12b
 ```
 
 The app will be available at [localhost:3000](http://localhost:3000).
 
-Run database migrations the first time:
+### Services
 
-```bash
-docker compose exec app npx prisma migrate deploy
-```
+| Service       | URL                          | Purpose                        |
+| ------------- | ---------------------------- | ------------------------------ |
+| App           | http://localhost:3000        | Next.js                        |
+| Prisma Studio | http://localhost:5555        | Database UI (`npx prisma studio`)|
+| Mailpit       | http://localhost:8025        | Email capture + web UI         |
+| Ollama        | http://localhost:11434       | Local LLM API                  |
 
 ### Local Development (without Docker)
 
-#### Prerequisites
-
-- Node.js 20+
-- PostgreSQL 17 with pgvector
-- Anthropic API key (for AI analysis)
-- Resend API key (for email digests)
-
-#### Setup
+**Prerequisites:** Node.js 20+, PostgreSQL 17 with pgvector, Ollama
 
 ```bash
 git clone https://github.com/LachlanMartin/the-morning-money
 cd the-morning-money
 npm install
 cp .env.example .env
-```
 
-Edit `.env` with your API keys and database URL, then:
+# Edit .env with your database URL and Ollama endpoint
+# Defaults: OLLAMA_BASE_URL=http://localhost:11434, OLLAMA_MODEL=gemma3:12b
 
-```bash
+ollama pull gemma3:12b   # pull the model once
 npx prisma migrate deploy
 npm run dev
 ```
 
-Open [localhost:3000](http://localhost:3000) — you're ready to create watchlists and add tickers.
-
 ### Commands
 
-| Command                  | Description                           |
-| ------------------------ | ------------------------------------- |
-| `npm run dev`            | Start Next.js dev server              |
-| `npm run build`          | Production build                      |
-| `npm run start`          | Start production server               |
-| `npm run lint`           | Run ESLint                            |
-| `npm run test`           | Run unit tests                        |
-| `npm run test:e2e`       | Run Playwright e2e tests              |
-| `npx prisma migrate dev` | Create migration after schema changes |
-| `npx prisma generate`    | Regenerate Prisma client              |
-| `npx prisma studio`      | Open database UI                      |
+| Command                  | Description                              |
+| ------------------------ | ---------------------------------------- |
+| `npm run dev`            | Start Next.js dev server                 |
+| `npm run dev:full`       | Start Postgres + Prisma Studio + Next.js |
+| `npm run build`          | Production build                         |
+| `npm run start`          | Start production server                  |
+| `npm run lint`           | Run ESLint                               |
+| `npm run test`           | Run unit tests                           |
+| `npm run test:e2e`       | Run Playwright e2e tests                 |
+| `npx prisma migrate dev` | Create migration after schema changes    |
+| `npx prisma generate`    | Regenerate Prisma client                 |
+| `npx prisma studio`      | Open database UI                         |
 
-## Self-Hosting
+## Configuration
 
-The app runs on any Node.js platform with a Postgres database.
+### Required Env Vars
 
-### Required Services
+| Variable            | Default                          | Notes                                    |
+| ------------------- | -------------------------------- | ---------------------------------------- |
+| `LOCAL_USER_EMAIL`  | `you@email.com`                  | Auto-created single user                 |
+| `DATABASE_URL`      | —                                | Postgres connection (pooled)             |
+| `DIRECT_URL`        | —                                | Postgres connection (direct)             |
+| `CRON_SECRET`       | —                                | Shared secret for cron endpoint          |
 
-| Service          | Purpose             | Free Tier Available  |
-| ---------------- | ------------------- | -------------------- |
-| PostgreSQL       | Database            | Self-hosted          |
-| Anthropic Claude | AI analysis         | No (paid API)        |
-| Resend           | Email delivery      | Yes (100 emails/day) |
+### Optional Env Vars
 
-### Env Vars
+| Variable            | Default                          | Notes                                    |
+| ------------------- | -------------------------------- | ---------------------------------------- |
+| `OLLAMA_BASE_URL`   | `http://ollama:11434`            | Ollama API endpoint                      |
+| `OLLAMA_MODEL`      | `gemma3:12b`                     | Model to use (mistral:7b, llama3.2:3b)  |
+| `SMTP_HOST`         | `mailpit`                        | SMTP server host                         |
+| `SMTP_PORT`         | `1025`                           | SMTP server port                         |
+| `SMTP_SECURE`       | `false`                          | Use TLS (`true` for port 465)            |
+| `SMTP_USER`         | —                                | SMTP auth user                           |
+| `SMTP_PASS`         | —                                | SMTP auth password                       |
+| `SMTP_FROM`         | `Morning Money <daily@localhost>`| Sender address                           |
 
-| Variable              | Required | Notes                                   |
-| --------------------- | -------- | --------------------------------------- |
-| `LOCAL_USER_EMAIL`    | Yes      | Email for the single auto-created user  |
-| `DATABASE_URL`        | Yes      | Postgres connection (pooled)            |
-| `DIRECT_URL`          | Yes      | Postgres connection (direct, migrations)|
-| `ANTHROPIC_API_KEY`   | Yes      | Claude API key for AI analysis          |
-| `RESEND_API_KEY`      | Yes      | Resend API key for email delivery       |
-| `RESEND_FROM_ADDRESS` | Yes      | Sender address for digest emails        |
-| `CRON_SECRET`         | Yes      | Shared secret for cron endpoint         |
-| `AWS_*`               | No       | S3 bucket for PDF storage (falls back to direct URLs) |
+### Real Email Delivery
+
+To send real emails instead of capturing in Mailpit, swap the SMTP vars to your provider:
+
+```env
+# Gmail example
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=you@gmail.com
+SMTP_PASS=<app-password>
+SMTP_FROM=Morning Money <you@gmail.com>
+```
+
+### Model Options by Hardware
+
+| Model            | Size  | VRAM needed |
+| ---------------- | ----- | ----------- |
+| `llama3.2:3b`    | ~2GB  | CPU-able    |
+| `mistral:7b`     | ~4GB  | 4-6GB       |
+| `gemma3:12b`     | ~8GB  | 8-10GB      |
+
+Set via `OLLAMA_MODEL` in `.env`.
 
 ## License
 

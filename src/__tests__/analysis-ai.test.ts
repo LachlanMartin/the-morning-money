@@ -1,8 +1,16 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-// Mock Anthropic client
-vi.mock("@/lib/anthropic", () => ({
-  getAnthropicClient: vi.fn(),
+// Mock Ollama client
+vi.mock("@/lib/ollama", () => ({
+  chat: vi.fn(),
+  getModelName: vi.fn().mockReturnValue("test-model"),
+}));
+
+// Mock storage
+vi.mock("@/lib/storage", () => ({
+  readPdf: vi.fn().mockResolvedValue(Buffer.from("mock pdf")),
+  isLocalKey: vi.fn().mockReturnValue(true),
+  savePdf: vi.fn().mockResolvedValue("local://test.pdf"),
 }));
 
 // Mock S3 client
@@ -37,17 +45,14 @@ import {
   analyzeUnprocessedAnnouncements,
 } from "@/lib/analysis";
 
-const { getAnthropicClient } = await import("@/lib/anthropic");
+const { chat } = await import("@/lib/ollama");
 const { PDFParse } = await import("pdf-parse");
 
-function setupMocks(claudeJsonResponse: string, pdfTextContent: string) {
-  vi.mocked(getAnthropicClient).mockReturnValue({
-    messages: {
-      create: vi.fn().mockResolvedValue({
-        content: [{ type: "text", text: claudeJsonResponse }],
-      }),
-    },
-  } as never);
+function setupMocks(llmJsonResponse: string, pdfTextContent: string) {
+  vi.mocked(chat).mockResolvedValue({
+    text: llmJsonResponse,
+    model: "test-model",
+  });
 
   vi.mocked(PDFParse).mockImplementation(
     function (this: Record<string, unknown>) {

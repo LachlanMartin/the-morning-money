@@ -1,8 +1,5 @@
-import { getResendClient } from "@/lib/resend";
+import { getTransport, getFromAddress } from "@/lib/smtp";
 import { siteUrl } from "@/lib/utils";
-
-const FROM_ADDRESS =
-  process.env.RESEND_FROM_ADDRESS || "Morning Money <daily@morning-money.app>";
 
 type AnalysisForEmail = {
   asxCode: string;
@@ -137,25 +134,21 @@ export async function sendDigestEmail(
   to: string,
   analyses: AnalysisForEmail[],
   dateStr: string,
-  idempotencyKey: string,
 ): Promise<boolean> {
-  const resend = getResendClient();
+  const transport = getTransport();
+  const from = getFromAddress();
   const unsubscribeUrl = `${siteUrl()}/unsubscribe`;
 
-  const { error } = await resend.emails.send({
-    from: FROM_ADDRESS,
-    to,
-    subject: `Your Morning Money digest \u2014 ${dateStr}`,
-    html: buildEmailHtml(analyses, dateStr, unsubscribeUrl),
-    headers: {
-      "Idempotency-Key": idempotencyKey,
-    },
-  });
-
-  if (error) {
+  try {
+    await transport.sendMail({
+      from,
+      to,
+      subject: `Your Morning Money digest \u2014 ${dateStr}`,
+      html: buildEmailHtml(analyses, dateStr, unsubscribeUrl),
+    });
+    return true;
+  } catch (error) {
     console.error("Failed to send digest email:", error);
     return false;
   }
-
-  return true;
 }

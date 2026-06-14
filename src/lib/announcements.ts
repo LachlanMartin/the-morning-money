@@ -4,7 +4,7 @@ import {
   resolvePdfUrl,
   downloadPdf,
 } from "@/lib/asx";
-import { uploadPdf, isS3Configured } from "@/lib/s3";
+import { savePdf } from "@/lib/storage";
 import { sourceHash } from "@/lib/hash";
 
 export type IngestResult = {
@@ -16,7 +16,7 @@ export type IngestResult = {
 
 /**
  * Fetches today's announcements for a given ASX code, downloads PDFs,
- * uploads to S3 (if configured), and creates Announcement records.
+ * uploads to local storage, and creates Announcement records.
  */
 export async function ingestAnnouncements(
   asxCode: string,
@@ -55,14 +55,8 @@ export async function ingestAnnouncements(
 
     try {
       const pdfUrl = await resolvePdfUrl(ann.pdfUrl);
-
-      if (isS3Configured()) {
-        const pdfBuffer = await downloadPdf(pdfUrl);
-        const s3Key = `announcements/${ann.idsId}.pdf`;
-        pdfS3Key = await uploadPdf(s3Key, pdfBuffer);
-      } else {
-        pdfS3Key = `asx://${pdfUrl}`;
-      }
+      const pdfBuffer = await downloadPdf(pdfUrl);
+      pdfS3Key = await savePdf(ann.idsId, pdfBuffer);
     } catch (err) {
       result.errors.push(
         `Failed to process ${ann.idsId} (${ann.headline}): ${err}`,

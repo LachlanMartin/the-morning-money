@@ -16,6 +16,21 @@ services:
       timeout: 5s
       retries: 5
 
+  ollama:
+    image: ollama/ollama:latest
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+
+  mailpit:
+    image: axllent/mailpit:latest
+    restart: unless-stopped
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+
   app:
     build: .
     restart: unless-stopped
@@ -25,17 +40,18 @@ services:
       - LOCAL_USER_EMAIL=${LOCAL_USER_EMAIL:-you@email.com}
       - DATABASE_URL=postgresql://postgres:postgres@db:5432/morningmoney
       - DIRECT_URL=postgresql://postgres:postgres@db:5432/morningmoney
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
-      - RESEND_API_KEY=${RESEND_API_KEY}
-      - RESEND_FROM_ADDRESS=${RESEND_FROM_ADDRESS:-Morning Money <daily@morning-money.app>}
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-gemma3:12b}
+      - SMTP_HOST=mailpit
+      - SMTP_PORT=1025
+      - SMTP_FROM=${SMTP_FROM:-Morning Money <daily@localhost>}
       - CRON_SECRET=${CRON_SECRET}
-      - AWS_REGION=${AWS_REGION:-}
-      - AWS_S3_BUCKET=${AWS_S3_BUCKET:-}
-      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID:-}
-      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:-}
     depends_on:
       db:
         condition: service_healthy
+      ollama:
+        condition: service_started
 
 volumes:
   pgdata:
+  ollama_data:

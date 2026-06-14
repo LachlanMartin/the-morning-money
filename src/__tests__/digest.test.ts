@@ -1,16 +1,20 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 // Mock dependencies before imports
-vi.mock("@/lib/anthropic", () => ({
-  getAnthropicClient: vi.fn(),
+vi.mock("@/lib/ollama", () => ({
+  chat: vi.fn(),
+  getModelName: vi.fn().mockReturnValue("test-model"),
 }));
 
-vi.mock("@/lib/resend", () => ({
-  getResendClient: vi.fn(),
+vi.mock("@/lib/smtp", () => ({
+  getTransport: vi.fn(),
+  getFromAddress: vi.fn().mockReturnValue("Morning Money <daily@localhost>"),
 }));
 
-vi.mock("@/lib/s3", () => ({
-  getS3Client: vi.fn(),
+vi.mock("@/lib/storage", () => ({
+  savePdf: vi.fn().mockResolvedValue("local://test.pdf"),
+  readPdf: vi.fn().mockResolvedValue(Buffer.from("mock pdf")),
+  isLocalKey: vi.fn().mockReturnValue(true),
 }));
 
 vi.mock("pdf-parse", () => ({
@@ -31,44 +35,32 @@ import { prisma } from "@/lib/prisma";
 import { generateDigestRun, sendDigest } from "@/lib/digest";
 import { sendDigestEmail } from "@/lib/email";
 
-const { getAnthropicClient } = await import("@/lib/anthropic");
-const { getResendClient } = await import("@/lib/resend");
+const { chat } = await import("@/lib/ollama");
+const { getTransport } = await import("@/lib/smtp");
 
-function mockClaudeResponse(summaryMd: string, sentiment = "NEUTRAL") {
-  vi.mocked(getAnthropicClient).mockReturnValue({
-    messages: {
-      create: vi.fn().mockResolvedValue({
-        content: [
-          {
-            type: "text",
-            text: JSON.stringify({
-              summaryMd,
-              sentiment,
-              predictedDirection: "FLAT",
-              confidence: 0.75,
-            }),
-          },
-        ],
-      }),
-    },
+function mockOllamaResponse(summaryMd: string, sentiment = "NEUTRAL") {
+  vi.mocked(chat).mockResolvedValue({
+    text: JSON.stringify({
+      summaryMd,
+      sentiment,
+      predictedDirection: "FLAT",
+      confidence: 0.75,
+    }),
+    model: "test-model",
+  });
+}
+
+function mockSmtpSuccess() {
+  vi.mocked(getTransport).mockReturnValue({
+    sendMail: vi.fn().mockResolvedValue(undefined),
+    verify: vi.fn(),
   } as never);
 }
 
-function mockResendSuccess() {
-  vi.mocked(getResendClient).mockReturnValue({
-    emails: {
-      send: vi.fn().mockResolvedValue({ error: null }),
-    },
-  } as never);
-}
-
-function mockResendFailure() {
-  vi.mocked(getResendClient).mockReturnValue({
-    emails: {
-      send: vi.fn().mockResolvedValue({
-        error: { message: "Failed to send" },
-      }),
-    },
+function mockSmtpFailure() {
+  vi.mocked(getTransport).mockReturnValue({
+    sendMail: vi.fn().mockRejectedValue(new Error("Failed to send")),
+    verify: vi.fn(),
   } as never);
 }
 
@@ -236,7 +228,7 @@ describe("sendDigest", () => {
   });
 
   it("sends email and marks digest as sent", async () => {
-    mockResendSuccess();
+    mockSmtpSuccess();
 
     const ok = await sendDigest(digestRunId);
     expect(ok).toBe(true);
@@ -248,8 +240,8 @@ describe("sendDigest", () => {
     expect(updated?.sentAt).not.toBeNull();
   });
 
-  it("returns false when Resend fails", async () => {
-    mockResendFailure();
+  it("returns false when SMTP fails", async () => {
+    mockSmtpFailure();
 
     const ok = await sendDigest(digestRunId);
     expect(ok).toBe(false);
@@ -267,13 +259,13 @@ describe("sendDigest", () => {
   });
 
   it("returns false if digest was already sent", async () => {
-    mockResendSuccess();
+    mockSmtpSuccess();
 
     // Send first time
     await sendDigest(digestRunId);
 
     // Try to send again
-    mockResendSuccess();
+    mockSmtpSuccess();
     const ok = await sendDigest(digestRunId);
     expect(ok).toBe(false);
   });

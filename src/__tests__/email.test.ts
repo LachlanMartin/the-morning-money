@@ -25,31 +25,32 @@ const MOCK_ANALYSIS_NEGATIVE = {
 // with a mocked Resend client.
 import { vi } from "vitest";
 
-vi.mock("@/lib/resend", () => ({
-  getResendClient: vi.fn(),
+vi.mock("@/lib/smtp", () => ({
+  getTransport: vi.fn(),
+  getFromAddress: vi.fn().mockReturnValue("Morning Money <daily@localhost>"),
 }));
 
-const { getResendClient } = await import("@/lib/resend");
+const { getTransport } = await import("@/lib/smtp");
 const { sendDigestEmail } = await import("@/lib/email");
 
 describe("sendDigestEmail", () => {
-  it("calls Resend with correct parameters", async () => {
-    const mockSend = vi.fn().mockResolvedValue({ error: null });
-    vi.mocked(getResendClient).mockReturnValue({
-      emails: { send: mockSend },
+  it("calls SMTP transport with correct parameters", async () => {
+    const mockSendMail = vi.fn().mockResolvedValue(undefined);
+    vi.mocked(getTransport).mockReturnValue({
+      sendMail: mockSendMail,
+      verify: vi.fn(),
     } as never);
 
     const result = await sendDigestEmail(
       "user@example.com",
       [MOCK_ANALYSIS],
       "Monday 9 June 2026",
-      "idempotent-123",
     );
 
     expect(result).toBe(true);
-    expect(mockSend).toHaveBeenCalledOnce();
+    expect(mockSendMail).toHaveBeenCalledOnce();
 
-    const call = mockSend.mock.calls[0][0];
+    const call = mockSendMail.mock.calls[0][0];
     expect(call.to).toBe("user@example.com");
     expect(call.from).toContain("Morning Money");
     expect(call.subject).toContain("Monday 9 June 2026");
@@ -57,76 +58,73 @@ describe("sendDigestEmail", () => {
     expect(call.html).toContain("BHP");
     expect(call.html).toContain("85% confidence");
     expect(call.html).toContain("The Morning Money");
-    expect(call.headers["Idempotency-Key"]).toBe("idempotent-123");
   });
 
-  it("returns false when Resend returns an error", async () => {
-    const mockSend = vi.fn().mockResolvedValue({
-      error: { message: "Invalid recipient" },
-    });
-    vi.mocked(getResendClient).mockReturnValue({
-      emails: { send: mockSend },
+  it("returns false when SMTP transport fails", async () => {
+    const mockSendMail = vi.fn().mockRejectedValue(new Error("Invalid recipient"));
+    vi.mocked(getTransport).mockReturnValue({
+      sendMail: mockSendMail,
+      verify: vi.fn(),
     } as never);
 
     const result = await sendDigestEmail(
       "bad@example.com",
       [MOCK_ANALYSIS],
       "Tuesday 10 June 2026",
-      "idempotent-456",
     );
 
     expect(result).toBe(false);
   });
 
   it("includes multiple analysis items in the HTML", async () => {
-    const mockSend = vi.fn().mockResolvedValue({ error: null });
-    vi.mocked(getResendClient).mockReturnValue({
-      emails: { send: mockSend },
+    const mockSendMail = vi.fn().mockResolvedValue(undefined);
+    vi.mocked(getTransport).mockReturnValue({
+      sendMail: mockSendMail,
+      verify: vi.fn(),
     } as never);
 
     await sendDigestEmail(
       "user@example.com",
       [MOCK_ANALYSIS, MOCK_ANALYSIS_NEGATIVE],
       "Wednesday 11 June 2026",
-      "idempotent-789",
     );
 
-    const html = mockSend.mock.calls[0][0].html;
+    const html = mockSendMail.mock.calls[0][0].html;
     expect(html).toContain("BHP reports record iron ore production");
     expect(html).toContain("CBA flags rising loan impairments");
   });
 
   it("handles empty analyses array (no announcements email)", async () => {
-    const mockSend = vi.fn().mockResolvedValue({ error: null });
-    vi.mocked(getResendClient).mockReturnValue({
-      emails: { send: mockSend },
+    const mockSendMail = vi.fn().mockResolvedValue(undefined);
+    vi.mocked(getTransport).mockReturnValue({
+      sendMail: mockSendMail,
+      verify: vi.fn(),
     } as never);
 
     await sendDigestEmail(
       "user@example.com",
       [],
       "Thursday 12 June 2026",
-      "idempotent-000",
     );
 
-    const html = mockSend.mock.calls[0][0].html;
+    const html = mockSendMail.mock.calls[0][0].html;
     expect(html).toContain("No announcements for your watchlists today");
   });
 
   it("renders sentiment labels and arrows correctly", async () => {
-    const mockSend = vi.fn().mockResolvedValue({ error: null });
-    vi.mocked(getResendClient).mockReturnValue({
-      emails: { send: mockSend },
+    const mockSendMail = vi.fn().mockResolvedValue(undefined);
+    vi.mocked(getTransport).mockReturnValue({
+      sendMail: mockSendMail,
+      verify: vi.fn(),
     } as never);
 
     await sendDigestEmail(
       "user@example.com",
       [MOCK_ANALYSIS, MOCK_ANALYSIS_NEGATIVE],
       "Friday 13 June 2026",
-      "id-arrows",
     );
 
-    const html = mockSend.mock.calls[0][0].html;
+    const html = mockSendMail.mock.calls[0][0].html;
     // Positive sentiment styling
     expect(html).toMatch(/Positive/);
     // Negative sentiment styling
@@ -137,19 +135,19 @@ describe("sendDigestEmail", () => {
   });
 
   it("includes unsubscribe URL in email", async () => {
-    const mockSend = vi.fn().mockResolvedValue({ error: null });
-    vi.mocked(getResendClient).mockReturnValue({
-      emails: { send: mockSend },
+    const mockSendMail = vi.fn().mockResolvedValue(undefined);
+    vi.mocked(getTransport).mockReturnValue({
+      sendMail: mockSendMail,
+      verify: vi.fn(),
     } as never);
 
     await sendDigestEmail(
       "user@example.com",
       [MOCK_ANALYSIS],
       "Saturday 14 June 2026",
-      "id-unsub",
     );
 
-    const html = mockSend.mock.calls[0][0].html;
+    const html = mockSendMail.mock.calls[0][0].html;
     expect(html).toContain("unsubscribe");
     expect(html).toContain("/unsubscribe");
   });

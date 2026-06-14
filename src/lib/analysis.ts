@@ -1,10 +1,9 @@
 import { prisma } from "@/lib/prisma";
-import { getAnthropicClient } from "@/lib/anthropic";
-import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
+import { chat, getModelName } from "@/lib/ollama";
+import { readPdf, isLocalKey } from "@/lib/storage";
 import { PDFParse } from "pdf-parse";
 
 const CURRENT_PROMPT_VERSION = "1.0";
-const MODEL = "claude-sonnet-4-6";
 
 // Configure PDF.js worker for Node.js runtime
 try {
@@ -61,66 +60,15 @@ export type AnalysisResult = {
   confidence: number;
 };
 
-function getS3Client(): S3Client | null {
-  if (
-    !process.env.AWS_REGION ||
-    !process.env.AWS_ACCESS_KEY_ID ||
-    !process.env.AWS_SECRET_ACCESS_KEY
-  ) {
-    return null;
-  }
-  return new S3Client({
-    region: process.env.AWS_REGION,
-    credentials: {
-      accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-      secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-    },
-  });
-}
+async function fetchPdfBuffer(key: string): Promise<Buffer> {
+  if (isLocalKey(key)) return readPdf(key);
 
-function isAsxReference(key: string): boolean {
-  return key.startsWith("asx://");
-}
-
-function asxUrlFromReference(key: string): string {
-  return key.replace("asx://", "");
-}
-
-async function downloadPdfFromUrl(url: string): Promise<Buffer> {
-  const res = await fetch(url, {
+  const res = await fetch(key, {
     headers: { "User-Agent": "MorningMoney/1.0" },
   });
-  if (!res.ok) {
-    throw new Error(`Failed to download PDF: ${res.status}`);
-  }
+  if (!res.ok) throw new Error(`Failed to download PDF: ${res.status}`);
   const arrayBuffer = await res.arrayBuffer();
   return Buffer.from(arrayBuffer);
-}
-
-async function downloadPdfFromS3(key: string): Promise<Buffer> {
-  const bucket = process.env.AWS_S3_BUCKET;
-  if (!bucket) throw new Error("AWS_S3_BUCKET not set");
-
-  const s3 = getS3Client();
-  if (!s3) throw new Error("S3 not configured");
-
-  const command = new GetObjectCommand({
-    Bucket: bucket,
-    Key: key,
-  });
-
-  const response = await s3.send(command);
-  const body = await response.Body?.transformToByteArray();
-  if (!body) throw new Error("Empty PDF from S3");
-
-  return Buffer.from(body);
-}
-
-async function fetchPdfBuffer(pdfS3Key: string): Promise<Buffer> {
-  if (isAsxReference(pdfS3Key)) {
-    return downloadPdfFromUrl(asxUrlFromReference(pdfS3Key));
-  }
-  return downloadPdfFromS3(pdfS3Key);
 }
 
 async function extractPdfText(buffer: Buffer): Promise<string> {
@@ -131,35 +79,17 @@ async function extractPdfText(buffer: Buffer): Promise<string> {
   return result.text;
 }
 
-async function callClaude(
+async function runAnalysis(
   text: string,
   headline: string,
 ): Promise<AnalysisResult> {
-  const client = getAnthropicClient();
-
-  const message = await client.messages.create({
-    model: MODEL,
-    max_tokens: 2000,
+  const result = await chat({
     system: SYSTEM_PROMPT,
-    messages: [
-      {
-        role: "user",
-        content: [
-          {
-            type: "text",
-            text: `Analyse this ASX announcement with headline "${headline}".\n\nFull text of the announcement:\n\n${text}`,
-          },
-        ],
-      },
-    ],
+    prompt: `Analyse this ASX announcement with headline "${headline}".\n\nFull text of the announcement:\n\n${text}`,
+    maxTokens: 2000,
   });
 
-  const block = message.content[0];
-  if (block.type !== "text") {
-    throw new Error("Unexpected response type from Claude");
-  }
-
-  const json = extractJson(block.text);
+  const json = extractJson(result.text);
   return validateAnalysisResult(json);
 }
 
@@ -228,7 +158,7 @@ export async function analyzeAnnouncement(
 
   const pdfBuffer = await fetchPdfBuffer(announcement.pdfS3Key);
   const pdfText = await extractPdfText(pdfBuffer);
-  const result = await callClaude(pdfText, announcement.headline);
+  const result = await runAnalysis(pdfText, announcement.headline);
 
   await prisma.analysis.create({
     data: {
@@ -237,7 +167,7 @@ export async function analyzeAnnouncement(
       sentiment: result.sentiment,
       predictedDirection: result.predictedDirection,
       confidence: result.confidence,
-      model: MODEL,
+      model: getModelName(),
       promptVersion: CURRENT_PROMPT_VERSION,
     },
   });

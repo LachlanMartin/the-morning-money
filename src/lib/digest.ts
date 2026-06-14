@@ -112,7 +112,6 @@ export async function sendDigest(
       confidence: a.confidence,
     })),
     dateStr,
-    `digest-${digestRun.id}`,
   );
 
   if (ok) {
