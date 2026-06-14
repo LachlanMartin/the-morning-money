@@ -1,7 +1,10 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { isLocalMode } from "@/lib/app-mode";
 
 export async function GET(request: NextRequest) {
+  if (isLocalMode()) return NextResponse.redirect(new URL("/dashboard", request.url));
+
   const url = new URL(request.url);
   const code = url.searchParams.get("code");
   const tokenHash = url.searchParams.get("token_hash");

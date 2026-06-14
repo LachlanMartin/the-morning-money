@@ -31,18 +31,58 @@ Plain-English summaries of ASX announcements for the tickers you watch. Delivere
 
 ## Architecture
 
-```text
-User → Watchlist → WatchlistTicker
-                        ↓
-               Announcement (from ASX)
-                        ↓
-                  Analysis (Claude)
-                        ↓
-                  DigestRun → Email
+### Data Flow
+
+```mermaid
+flowchart TB
+    subgraph Client["Browser"]
+        UI["Next.js App Router\nPages + Server Components"]
+    end
+
+    subgraph Auth["Authentication"]
+        SB["Supabase Auth\nSSR Cookie Sessions"]
+        Proxy["proxy.ts\nSession Refresh"]
+    end
+
+    subgraph Core["Core Application"]
+        direction TB
+        WL["Watchlist Manager\nCRUD + Ticker Tracking"]
+        ASX["ASX Scraper\nMarket Announcements Platform"]
+        Analysis["AI Analysis Pipeline\nAnthropic Claude"]
+        Digest["Digest Generator\nPer-User, Per-Day"]
+    end
+
+    subgraph Infra["Infrastructure"]
+        DB[("PostgreSQL\nSupabase / Docker")]
+        S3["AWS S3\nPDF Storage"]
+        Resend["Resend\nEmail Delivery"]
+        Cron["Cron Worker\nDaily Trigger"]
+        Stripe["Stripe\nBilling (Public Mode)"]
+    end
+
+    UI --> Proxy
+    Proxy --> SB
+    SB --> DB
+    UI --> WL
+    WL --> DB
+    Cron --> ASX
+    ASX --> S3
+    ASX --> DB
+    ASX --> Analysis
+    Analysis --> DB
+    Cron --> Digest
+    Digest --> DB
+    Digest --> Resend
+    Digest --> Analysis
+    WL --> Digest
+    Stripe --> DB
 ```
 
-- Announcements are analysed once per ticker, not once per watching user (O(announcements) cost, not O(users))
-- AFSL-compliant: analysis is general information + sentiment only, never personalised advice
+### Key Design Decisions
+
+- **Per-announcement analysis, not per-user**: announcements are analysed once per ticker (O(announcements) cost, not O(users)). All watchers of a ticker share the same analysis.
+- **AFSL-compliant**: analysis is general information + sentiment only, never personalised advice. No user portfolio context is fed to the model.
+- **Two modes**: `NEXT_PUBLIC_APP_MODE=public` runs the full SaaS (Supabase Auth, Stripe). `NEXT_PUBLIC_APP_MODE=local` drops auth/payments for self-hosted Docker setups — zero external dependencies beyond Anthropic + Resend.
 
 ## Getting Started
 
@@ -64,7 +104,7 @@ Run database migrations the first time:
 docker compose exec app npx prisma migrate deploy
 ```
 
-> **Note:** Docker runs the app but still requires a Supabase project (free tier) for authentication. See [.env.example](.env.example) for environment variable details.
+> **Tip:** Set `NEXT_PUBLIC_APP_MODE=local` in `.env` for zero-auth self-hosted mode — no Supabase, Stripe, or AWS required. Only Anthropic + Resend keys are mandatory.
 
 ### Local Development (without Docker)
 
@@ -157,16 +197,22 @@ The app can be self-hosted via Docker or on any Node.js platform.
 | AWS S3            | PDF storage               | Yes (free tier)     |
 | Stripe            | Payment processing        | Yes (test mode)     |
 
-### Without Supabase Cloud
+### Local Mode (`NEXT_PUBLIC_APP_MODE=local`)
 
-If you want to run everything locally without cloud services:
+Runs the entire app with zero auth and no payments. A single local user is auto-created from `LOCAL_USER_EMAIL`.
 
-1. **Database:** The docker-compose includes Postgres with pgvector.
-2. **Auth:** Run Supabase locally (`supabase start`) or self-host [Supabase Auth](https://supabase.com/docs/guides/self-hosting/docker).
-3. **Email:** Use Mailpit (included in local Supabase) for development, or any Resend-compatible SMTP.
-4. **Storage:** Announcement PDFs can be stored in the local filesystem by omitting AWS credentials.
+```bash
+cp .env.example .env
+# Set NEXT_PUBLIC_APP_MODE=local
+# Set LOCAL_USER_EMAIL=you@email.com
+# Add your ANTHROPIC_API_KEY and RESEND_API_KEY
 
-email.
+docker compose up -d
+docker compose exec app npx prisma migrate deploy
+# → open http://localhost:3000
+```
+
+Only Anthropic + Resend API keys are required. Supabase, Stripe, and AWS S3 are optional in local mode.
 
 ## Project Status
 
@@ -178,7 +224,7 @@ email.
 - [x] Scheduled cron
 - [x] Stripe billing
 - [x] Production polish
-- [ ] Local mode (`NEXT_PUBLIC_APP_MODE=local`) — [#10](https://github.com/LachlanMartin/the-morning-money/issues/10)
+- [x] Local mode (`NEXT_PUBLIC_APP_MODE=local`) — [#10](https://github.com/LachlanMartin/the-morning-money/issues/10)
 
 See [GitHub Issues](https://github.com/LachlanMartin/the-morning-money/issues) for remaining tasks and future ideas.
 
