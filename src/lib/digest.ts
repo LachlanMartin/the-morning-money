@@ -172,24 +172,17 @@ export async function runDailyPipeline(): Promise<{
     (sum, r) => sum + r.fetched,
     0,
   );
-  if (totalFetched === 0) {
-    return {
-      announcementsFetched,
-      analyzed: 0,
-      digestsGenerated: 0,
-      emailsSent: 0,
-      errors: [],
-    };
-  }
 
-  // Step 2: Analyze unprocessed announcements
+  // Step 2: Analyze unprocessed announcements (skip if nothing to analyze)
   let analyzed = 0;
-  try {
-    const analysisResult = await analyzeUnprocessedAnnouncements();
-    analyzed = analysisResult.processed;
-    errors.push(...analysisResult.errors.map((e) => `Analysis: ${e}`));
-  } catch (err) {
-    errors.push(`Analysis failed: ${err}`);
+  if (totalFetched > 0) {
+    try {
+      const analysisResult = await analyzeUnprocessedAnnouncements();
+      analyzed = analysisResult.processed;
+      errors.push(...analysisResult.errors.map((e) => `Analysis: ${e}`));
+    } catch (err) {
+      errors.push(`Analysis failed: ${err}`);
+    }
   }
 
   // Step 3: Generate digests for paid users and active trial users

@@ -1,7 +1,20 @@
+import "dotenv/config";
 import { test, expect } from "@playwright/test";
+import { Pool } from "pg";
 import { createWatchlist, addTicker, removeTicker } from "./helpers";
 
+const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+
 test.describe("dashboard", () => {
+  test.beforeEach(async () => {
+    await pool.query('DELETE FROM "WatchlistTicker"');
+    await pool.query('DELETE FROM "Watchlist"');
+  });
+
+  test.afterAll(async () => {
+    await pool.end();
+  });
+
   test.beforeEach(async ({ page }) => {
     await page.goto("/dashboard");
     await page.waitForLoadState("networkidle");

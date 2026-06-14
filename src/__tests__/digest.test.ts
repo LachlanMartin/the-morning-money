@@ -31,12 +31,21 @@ vi.mock("@aws-sdk/client-s3", () => ({
   GetObjectCommand: vi.fn(),
 }));
 
+vi.mock("@/lib/announcements", () => ({
+  ingestAllWatchlistedTickers: vi.fn(),
+}));
+
 import { prisma } from "@/lib/prisma";
-import { generateDigestRun, sendDigest } from "@/lib/digest";
+import {
+  generateDigestRun,
+  sendDigest,
+  runDailyPipeline,
+} from "@/lib/digest";
 import { sendDigestEmail } from "@/lib/email";
 
 const { chat } = await import("@/lib/ollama");
 const { getTransport } = await import("@/lib/smtp");
+const { ingestAllWatchlistedTickers } = await import("@/lib/announcements");
 
 function mockOllamaResponse(summaryMd: string, sentiment = "NEUTRAL") {
   vi.mocked(chat).mockResolvedValue({
@@ -271,13 +280,52 @@ describe("sendDigest", () => {
   });
 });
 
-describe("runDailyPipeline summary", () => {
-  it("uses plan: PAID filter for users (not all users)", async () => {
-    // This test verifies the pipeline only processes PAID users.
-    // We check via the where clause in the digest code.
-    // Since we can't easily test runDailyPipeline end-to-end with mocks,
-    // we verify the code structure: the findMany call filters by plan.
-    // Actual plan gating is already verified by the E2E test suite.
-    expect(true).toBe(true);
+describe("runDailyPipeline", () => {
+  beforeEach(async () => {
+    await prisma.digestRun.deleteMany({
+      where: { user: { email: "digest-test@tmm.dev" } },
+    });
+    await prisma.watchlistTicker.deleteMany({
+      where: { watchlist: { user: { email: "digest-test@tmm.dev" } } },
+    });
+    await prisma.watchlist.deleteMany({
+      where: { user: { email: "digest-test@tmm.dev" } },
+    });
+    await prisma.user.deleteMany({
+      where: { email: "digest-test@tmm.dev" },
+    });
+    vi.mocked(getTransport).mockReset();
+    vi.mocked(getTransport).mockReturnValue(undefined as never);
+  });
+
+  it("generates digest runs even when no announcements are fetched", async () => {
+    // Freeze time to a Monday so the pipeline doesn't skip as a weekend
+    const monday = new Date("2026-06-08T12:00:00Z");
+    vi.useFakeTimers();
+    vi.setSystemTime(monday);
+
+    const user = await prisma.user.create({
+      data: {
+        supabaseId: `test-pipeline-${Date.now()}`,
+        email: "digest-test@tmm.dev",
+        plan: "PAID",
+      },
+    });
+
+    const watchlist = await prisma.watchlist.create({
+      data: { userId: user.id, name: "Test" },
+    });
+    await prisma.watchlistTicker.create({
+      data: { watchlistId: watchlist.id, asxCode: "ZZZ" },
+    });
+
+    vi.mocked(ingestAllWatchlistedTickers).mockResolvedValue({});
+
+    const result = await runDailyPipeline();
+
+    expect(result.announcementsFetched).toEqual({});
+    expect(result.analyzed).toBe(0);
+    expect(result.digestsGenerated).toBeGreaterThanOrEqual(1);
+    expect(result.emailsSent).toBe(0);
   });
 });

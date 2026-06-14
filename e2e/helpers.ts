@@ -1,7 +1,7 @@
 import type { Page } from "@playwright/test";
 
 export async function createWatchlist(page: Page, name: string): Promise<void> {
-  await page.getByPlaceholder(/Australian Banks/).fill(name);
+  await page.getByPlaceholder("Name your watchlist...").fill(name);
   await page.getByRole("button", { name: "Add Watchlist" }).click();
   await page.waitForTimeout(500);
 }
