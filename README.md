@@ -1,4 +1,13 @@
-# The Morning Money
+<p align="center">
+  <img src="public/favicon.svg" alt="The Morning Money" width="64">
+</p>
+
+<h1 align="center">The Morning Money</h1>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Next.js-16-black?logo=next.js">
+  <img src="https://img.shields.io/badge/license-MIT-blue">
+</p>
 
 Plain-English summaries of ASX announcements for the tickers you watch. Delivered every morning.
 
@@ -21,16 +30,14 @@ docker compose exec ollama ollama pull gemma3:12b
 
 Open [localhost:3000](http://localhost:3000).
 
-### Services
+| Service | URL | Purpose |
+|---------|-----|---------|
+| App | http://localhost:3000 | Next.js UI |
+| Prisma Studio | http://localhost:51212 | Database UI |
+| Mailpit | http://localhost:8025 | Captures outbound email |
+| Ollama | http://localhost:11434 | Local LLM API |
 
-| Service       | URL                     | Purpose                        |
-| ------------- | ----------------------- | ------------------------------ |
-| App           | http://localhost:3000   | Next.js UI                     |
-| Prisma Studio | http://localhost:51212  | Database UI (`npx prisma studio`) |
-| Mailpit       | http://localhost:8025   | Captures all outbound email    |
-| Ollama        | http://localhost:11434  | Local LLM API                  |
-
-## Local dev (without Docker)
+## Local Dev
 
 **Prerequisites:** Node 20+, PostgreSQL 17 with pgvector, Ollama.
 
@@ -42,37 +49,29 @@ npx prisma migrate deploy
 pnpm run dev
 ```
 
----
+## Digest Pipeline
 
-## Daily Digest Pipeline
-
-The app fetches ASX announcements, analyses them via Ollama, and emails a summary. Runs weekdays at 10am AEST via a cron sidecar in docker-compose. Trigger manually:
+Fetches ASX announcements, analyses via Ollama, emails a summary. Runs weekdays at 10am AEST via cron sidecar.
 
 ```bash
 ./scripts/trigger-digest.sh
 ```
 
-### Steps
-
-1. **Ingest** — fetch ASX announcements for all watchlisted tickers, download PDFs to `pdfs/`
+1. **Ingest** — fetch ASX announcements for watchlisted tickers, download PDFs
 2. **Analyse** — send unprocessed PDFs to Ollama for summary + sentiment + direction
 3. **Digest** — create `DigestRun` per active user with their tickers' analysis IDs
 4. **Email** — send digest via SMTP (Mailpit by default)
 
-Idempotency: announcements deduplicated by `sourceHash`, and at most one email per user/day via `DigestRun(userId, date)` unique constraint.
+Idempotent: announcements deduped by `sourceHash`, at most one email per user/day.
 
----
-
-## Architecture notes
+## Architecture
 
 | Topic | Detail |
 |-------|--------|
-| **Auth** | Single-user, auto-created from `LOCAL_USER_EMAIL`. `proxy.ts` (Next.js 16 renamed `middleware`) is a pass-through — no login screen. |
-| **Prisma 7** | Dual connection layout: `DIRECT_URL` for migrations (port 5432, defined in `prisma.config.ts`), `DATABASE_URL` for runtime queries via `PrismaPg` adapter. |
+| **Auth** | Single-user, auto-created from `LOCAL_USER_EMAIL`. `proxy.ts` is a pass-through. |
+| **Prisma 7** | `DIRECT_URL` for migrations, `DATABASE_URL` for runtime via `PrismaPg` adapter. |
 | **Storage** | PDFs stored locally in `pdfs/`, keyed as `local://<filename>.pdf`. |
-| **Cost** | LLM cost capped at O(announcements) — one analysis per announcement, not per user. |
-
----
+| **Cost** | LLM cost at O(announcements) — one analysis per announcement, not per user. |
 
 ## Commands
 
@@ -83,25 +82,21 @@ Idempotency: announcements deduplicated by `sourceHash`, and at most one email p
 | `pnpm run start` | Production server |
 | `pnpm run lint` | ESLint |
 | `pnpm run test` | Vitest unit tests |
-| `pnpm run test:e2e` | Playwright e2e tests |
+| `pnpm run test:e2e` | Playwright e2e |
 | `./scripts/trigger-digest.sh` | Run digest pipeline manually |
-| `./scripts/seed-watchlists.ts` | Seed sample watchlists |
-| `./scripts/fetch-asx-tickers.ts` | Fetch ASX ticker list |
 | `npx prisma migrate dev` | Create migration after schema change |
 | `npx prisma generate` | Regenerate Prisma client |
 | `npx prisma studio` | Database UI |
 
 ## Configuration
 
-See `.env.example` for all variables. Key ones:
+See `.env.example` for all variables.
 
 | Variable | Default | Notes |
 |----------|---------|-------|
-| `LOCAL_USER_EMAIL` | `you@email.com` | Single user auto-created from this |
+| `LOCAL_USER_EMAIL` | `you@email.com` | Single user auto-created |
 | `CRON_SECRET` | — | Shared secret for `/api/cron/daily-digest` |
 | `OLLAMA_MODEL` | `gemma3:12b` | Swap for `mistral:7b`, `llama3.2:3b`, etc. |
-
----
 
 ## License
 
