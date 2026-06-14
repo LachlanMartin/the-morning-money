@@ -25,12 +25,6 @@ export default async function ReportsPage() {
         <span>
           {dateStr} &middot; ASX Edition
         </span>
-        <Link
-          href="/dashboard"
-          className="hover:text-accent-link transition-colors uppercase"
-        >
-          &larr; Back to Watchlists
-        </Link>
       </div>
 
       {/* Header */}

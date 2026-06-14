@@ -1,6 +1,5 @@
 import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import Link from "next/link";
 import { AddWatchlistForm } from "./AddWatchlistForm";
 import { WatchlistCard } from "./WatchlistCard";
 
@@ -47,12 +46,6 @@ export default async function DashboardPage() {
             Track the announcements that move your portfolio.
           </p>
         </div>
-        <Link
-          href="/dashboard/reports"
-          className="text-sm text-muted-foreground hover:text-accent-link transition-colors font-mono text-xs uppercase tracking-wider pt-1"
-        >
-          Reports &rarr;
-        </Link>
       </div>
 
       {/* Summary stats */}

@@ -15,46 +15,59 @@ Plain-English summaries of ASX announcements for the tickers you watch. Delivere
 
 ## Tech Stack
 
-| Layer     | Choice                      |
-| --------- | --------------------------- |
-| Framework | Next.js 16 (App Router)     |
-| Language  | TypeScript (strict)         |
-| Styling   | Tailwind CSS v4, shadcn/ui  |
-| Database  | PostgreSQL + Prisma 7       |
-| AI        | Ollama (local LLM)          |
-| Email     | Nodemailer + SMTP           |
-| Storage   | Local filesystem            |
+| Layer     | Choice                     |
+| --------- | -------------------------- |
+| Framework | Next.js 16 (App Router)    |
+| Language  | TypeScript (strict)        |
+| Styling   | Tailwind CSS v4, shadcn/ui |
+| Database  | PostgreSQL + Prisma 7      |
+| AI        | Ollama (local LLM)         |
+| Email     | Nodemailer + SMTP          |
+| Storage   | Local filesystem           |
 
 ## Architecture
 
 ```mermaid
-flowchart TB
+flowchart LR
     subgraph Client["Browser"]
         UI["Next.js App Router"]
     end
 
-    subgraph Core["Application"]
+    subgraph App["Next.js App"]
         WL["Watchlist Manager"]
         ASX["ASX Scraper"]
-        Analysis["AI Analysis\nOllama (local LLM)"]
-        Digest["Digest Generator"]
+        AI["AI Analysis"]
+        DG["Digest Generator"]
+        CE["Cron Endpoint"]
     end
 
-    subgraph Infra["Docker Containers"]
-        DB[("PostgreSQL\npgvector")]
-        O["Ollama\nLocal LLM"]
-        M["Mailpit\nSMTP + Web UI"]
+    subgraph Docker["Docker Containers"]
+        DB[("PostgreSQL")]
+        O["Ollama"]
+        M["Mailpit"]
+        CR["Cron Sidecar"]
+    end
+
+    subgraph Ext["External"]
+        API[("ASX API")]
+    end
+
+    subgraph Store["Local"]
+        PDF[("pdfs/")]
     end
 
     UI --> WL
-    WL --> DB
+    WL --> DG
+    ASX --> API
+    ASX --> PDF
+    ASX --> AI
+    AI --> O
+    DG --> DB
+    DG --> M
     ASX --> DB
-    ASX --> Analysis
-    Analysis --> O
-    Analysis --> DB
-    Digest --> DB
-    Digest --> M
-    WL --> Digest
+    AI --> DB
+    CR -- "10am weekdays" --> CE
+    CE --> DG
 ```
 
 ## Getting Started
@@ -80,12 +93,13 @@ The app will be available at [localhost:3000](http://localhost:3000).
 
 ### Services
 
-| Service       | URL                          | Purpose                        |
-| ------------- | ---------------------------- | ------------------------------ |
-| App           | http://localhost:3000        | Next.js                        |
-| Prisma Studio | http://localhost:5555        | Database UI (`npx prisma studio`)|
-| Mailpit       | http://localhost:8025        | Email capture + web UI         |
-| Ollama        | http://localhost:11434       | Local LLM API                  |
+| Service       | URL                    | Purpose                           |
+| ------------- | ---------------------- | --------------------------------- |
+| App           | http://localhost:3000  | Next.js                           |
+| Prisma Studio | http://localhost:51212 | Database UI (`npx prisma studio`) |
+| Mailpit       | http://localhost:8025  | Email capture + web UI            |
+| Ollama        | http://localhost:11434 | Local LLM API                     |
+| Cron          | —                      | Scheduler sidecar (see below)     |
 
 ### Local Development (without Docker)
 
@@ -94,7 +108,7 @@ The app will be available at [localhost:3000](http://localhost:3000).
 ```bash
 git clone https://github.com/LachlanMartin/the-morning-money
 cd the-morning-money
-npm install
+pnpm install
 cp .env.example .env
 
 # Edit .env with your database URL and Ollama endpoint
@@ -102,47 +116,80 @@ cp .env.example .env
 
 ollama pull gemma3:12b   # pull the model once
 npx prisma migrate deploy
-npm run dev
+pnpm run dev
 ```
 
 ### Commands
 
-| Command                  | Description                              |
-| ------------------------ | ---------------------------------------- |
-| `npm run dev`            | Start Next.js dev server                 |
-| `npm run dev:full`       | Start Postgres + Prisma Studio + Next.js |
-| `npm run build`          | Production build                         |
-| `npm run start`          | Start production server                  |
-| `npm run lint`           | Run ESLint                               |
-| `npm run test`           | Run unit tests                           |
-| `npm run test:e2e`       | Run Playwright e2e tests                 |
-| `npx prisma migrate dev` | Create migration after schema changes    |
-| `npx prisma generate`    | Regenerate Prisma client                 |
-| `npx prisma studio`      | Open database UI                         |
+| Command                       | Description                            |
+| ----------------------------- | -------------------------------------- |
+| `pnpm run dev`                | Start Next.js dev server               |
+| `pnpm run build`              | Production build                       |
+| `pnpm run start`              | Start production server                |
+| `pnpm run lint`               | Run ESLint                             |
+| `pnpm run test`               | Run unit tests                         |
+| `pnpm run test:e2e`           | Run Playwright e2e tests               |
+| `./scripts/trigger-digest.sh` | Run the daily digest pipeline manually |
+| `npx prisma migrate dev`      | Create migration after schema changes  |
+| `npx prisma generate`         | Regenerate Prisma client               |
+| `npx prisma studio`           | Open database UI                       |
+
+## Daily Digest Pipeline
+
+The app runs a daily pipeline that scrapes ASX announcements, analyses them with Ollama, and emails a summary digest.
+
+### Automatic (Docker)
+
+A `cron` sidecar container runs the pipeline at **10:00am AEST on trading days** (Mon–Fri). It curls the app's internal endpoint with the `CRON_SECRET`.
+
+```bash
+docker compose up -d   # includes the cron container
+docker compose logs cron  # view run history
+```
+
+### Manual
+
+For local dev or testing, trigger the pipeline on-demand:
+
+```bash
+./scripts/trigger-digest.sh
+```
+
+### Pipeline steps
+
+1. **Ingest** — fetches today's ASX announcements for all watchlisted tickers, downloads PDFs, stores locally in `pdfs/`
+2. **Analyse** — sends unprocessed PDFs to Ollama for AI summary + sentiment + direction
+3. **Digest** — generates a `DigestRun` per active user containing their tickers' analysis IDs
+4. **Email** — sends the digest email via SMTP (Mailpit by default)
+
+Idempotency guarantees:
+
+- Announcements deduplicated by `sourceHash` — re-runs skip existing
+- `DigestRun(userId, date)` is unique — email sent at most once per user/day
 
 ## Configuration
 
 ### Required Env Vars
 
-| Variable            | Default                          | Notes                                    |
-| ------------------- | -------------------------------- | ---------------------------------------- |
-| `LOCAL_USER_EMAIL`  | `you@email.com`                  | Auto-created single user                 |
-| `DATABASE_URL`      | —                                | Postgres connection (pooled)             |
-| `DIRECT_URL`        | —                                | Postgres connection (direct)             |
-| `CRON_SECRET`       | —                                | Shared secret for cron endpoint          |
+| Variable           | Default         | Notes                           |
+| ------------------ | --------------- | ------------------------------- |
+| `LOCAL_USER_EMAIL` | `you@email.com` | Auto-created single user        |
+| `DATABASE_URL`     | —               | Postgres connection (pooled)    |
+| `DIRECT_URL`       | —               | Postgres connection (direct)    |
+| `CRON_SECRET`      | —               | Shared secret for cron endpoint |
 
 ### Optional Env Vars
 
-| Variable            | Default                          | Notes                                    |
-| ------------------- | -------------------------------- | ---------------------------------------- |
-| `OLLAMA_BASE_URL`   | `http://ollama:11434`            | Ollama API endpoint                      |
-| `OLLAMA_MODEL`      | `gemma3:12b`                     | Model to use (mistral:7b, llama3.2:3b)  |
-| `SMTP_HOST`         | `mailpit`                        | SMTP server host                         |
-| `SMTP_PORT`         | `1025`                           | SMTP server port                         |
-| `SMTP_SECURE`       | `false`                          | Use TLS (`true` for port 465)            |
-| `SMTP_USER`         | —                                | SMTP auth user                           |
-| `SMTP_PASS`         | —                                | SMTP auth password                       |
-| `SMTP_FROM`         | `Morning Money <daily@localhost>`| Sender address                           |
+| Variable          | Default                           | Notes                                  |
+| ----------------- | --------------------------------- | -------------------------------------- |
+| `OLLAMA_BASE_URL` | `http://ollama:11434`             | Ollama API endpoint                    |
+| `OLLAMA_MODEL`    | `gemma3:12b`                      | Model to use (mistral:7b, llama3.2:3b) |
+| `SMTP_HOST`       | `mailpit`                         | SMTP server host                       |
+| `SMTP_PORT`       | `1025`                            | SMTP server port                       |
+| `SMTP_SECURE`     | `false`                           | Use TLS (`true` for port 465)          |
+| `SMTP_USER`       | —                                 | SMTP auth user                         |
+| `SMTP_PASS`       | —                                 | SMTP auth password                     |
+| `SMTP_FROM`       | `Morning Money <daily@localhost>` | Sender address                         |
 
 ### Real Email Delivery
 
@@ -159,11 +206,11 @@ SMTP_FROM=Morning Money <you@gmail.com>
 
 ### Model Options by Hardware
 
-| Model            | Size  | VRAM needed |
-| ---------------- | ----- | ----------- |
-| `llama3.2:3b`    | ~2GB  | CPU-able    |
-| `mistral:7b`     | ~4GB  | 4-6GB       |
-| `gemma3:12b`     | ~8GB  | 8-10GB      |
+| Model         | Size | VRAM needed |
+| ------------- | ---- | ----------- |
+| `llama3.2:3b` | ~2GB | CPU-able    |
+| `mistral:7b`  | ~4GB | 4-6GB       |
+| `gemma3:12b`  | ~8GB | 8-10GB      |
 
 Set via `OLLAMA_MODEL` in `.env`.
 

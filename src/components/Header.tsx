@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { getCurrentUser } from "@/lib/auth";
+import { NavLinks } from "./NavLinks";
 
 export async function Header() {
   const user = await getCurrentUser();
@@ -17,14 +18,7 @@ export async function Header() {
 
         {/* Desktop nav */}
         <nav className="flex items-center gap-6">
-          {user && (
-            <Link
-              href="/dashboard/reports"
-              className="text-sm text-muted-foreground hover:text-accent-link transition-colors font-mono text-xs uppercase tracking-wider"
-            >
-              Reports
-            </Link>
-          )}
+          {user && <NavLinks />}
         </nav>
       </div>
     </header>

@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -59,12 +58,6 @@ export default async function ReportDetailPage({
         <span>
           {dateStr} &middot; ASX Edition
         </span>
-        <Link
-          href="/dashboard/reports"
-          className="hover:text-accent-link transition-colors uppercase"
-        >
-          &larr; Back to Reports
-        </Link>
       </div>
 
       {/* Masthead */}
