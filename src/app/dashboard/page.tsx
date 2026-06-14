@@ -3,18 +3,8 @@ import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { AddWatchlistForm } from "./AddWatchlistForm";
 import { WatchlistCard } from "./WatchlistCard";
-import { UpgradeToast } from "@/components/UpgradeToast";
-import { isLocalMode } from "@/lib/app-mode";
-
-const LIMITS = {
-  FREE: { maxDistinctTickers: 20 },
-  PAID: { maxDistinctTickers: 150 },
-} as const;
-
-const LOCAL_MAX_TICKERS = 999;
 
 export default async function DashboardPage() {
-  const local = isLocalMode();
   const user = await requireUser();
 
   const watchlists = await prisma.watchlist.findMany({
@@ -25,18 +15,10 @@ export default async function DashboardPage() {
     orderBy: { createdAt: "asc" },
   });
 
-  const tickerCount = watchlists.reduce(
-    (sum, w) => sum + w.tickers.length,
-    0,
-  );
-
   const distinctTickers = new Set(
     watchlists.flatMap((w) => w.tickers.map((t) => t.asxCode)),
   ).size;
 
-  const limit = local
-    ? { maxDistinctTickers: LOCAL_MAX_TICKERS }
-    : LIMITS[user.plan];
   const today = new Date();
   const dateStr = today.toLocaleDateString("en-AU", {
     weekday: "long",
@@ -45,38 +27,11 @@ export default async function DashboardPage() {
     day: "numeric",
   });
 
-  const trialDaysLeft = !local && user.plan === "FREE" && user.trialExpiresAt
-    ? Math.max(0, Math.ceil((user.trialExpiresAt.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)))
-    : null;
-
-  const planBadge =
-    user.plan === "PAID"
-      ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 border-green-200 dark:border-green-800"
-      : "bg-surface text-muted-foreground border-border";
-
   return (
     <div className="mx-auto w-full max-w-5xl px-6 py-8">
-      {!local && <UpgradeToast />}
-
       {/* Dateline */}
       <div className="flex items-center justify-between text-xs font-mono tracking-wider text-muted-foreground pb-3 border-b border-border">
         <span>{dateStr} &middot; ASX Edition</span>
-        <div className="flex items-center gap-3">
-          {trialDaysLeft !== null && (
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-amber-600 dark:text-amber-400">
-              {trialDaysLeft === 0
-                ? "Trial ended"
-                : `${trialDaysLeft} ${trialDaysLeft === 1 ? "day" : "days"} left`}
-            </span>
-          )}
-          {!local && (
-            <span
-              className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${planBadge}`}
-            >
-              {user.plan === "PAID" ? "Pro" : "Free"} Plan
-            </span>
-          )}
-        </div>
       </div>
 
       {/* Dashboard header */}
@@ -108,11 +63,6 @@ export default async function DashboardPage() {
             style={{ fontFamily: "var(--font-heading-family)" }}
           >
             {distinctTickers}
-            {!local && (
-              <span className="text-base font-normal text-muted-foreground">
-                /{limit.maxDistinctTickers}
-              </span>
-            )}
           </span>
           <span className="text-sm text-muted-foreground uppercase font-mono text-xs tracking-wider">
             Unique Tickers

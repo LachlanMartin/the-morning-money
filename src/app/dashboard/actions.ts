@@ -1,28 +1,18 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { getCurrentUser, isTrialExpired } from "@/lib/auth";
+import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 export type WatchlistActionState = { error: string | null };
 
 const ASX_CODE_RE = /^[A-Za-z]{1,3}$/;
 
-const LIMITS = {
-  FREE: {
-    maxDistinctTickers: 20,
-  },
-  PAID: {
-    maxDistinctTickers: 150,
-  },
-} as const;
-
 type AuthedUser = NonNullable<Awaited<ReturnType<typeof getCurrentUser>>>;
 
 async function requireActiveUser(): Promise<AuthedUser | WatchlistActionState> {
   const user = await getCurrentUser();
-  if (!user) return { error: "You must be signed in." };
-  if (isTrialExpired(user)) return { error: "Your free trial has ended. Upgrade to Pro to continue." };
+  if (!user) return { error: "User not configured." };
   return user;
 }
 
@@ -112,21 +102,6 @@ export async function addTicker(
   });
   if (!watchlist || watchlist.userId !== result.id) {
     return { error: "Watchlist not found." };
-  }
-
-  const limit = result.plan === "FREE" ? LIMITS.FREE : LIMITS.PAID;
-
-  const existingDistinct = await prisma.watchlistTicker.findMany({
-    where: { watchlist: { userId: result.id } },
-    select: { asxCode: true },
-    distinct: ["asxCode"],
-  });
-
-  const alreadyWatching = existingDistinct.some((t) => t.asxCode === asxCode);
-  if (!alreadyWatching && existingDistinct.length >= limit.maxDistinctTickers) {
-    return {
-      error: `Your plan allows up to ${limit.maxDistinctTickers} distinct tickers across all watchlists.`,
-    };
   }
 
   if (watchlist.tickers.some((t) => t.asxCode === asxCode)) {
