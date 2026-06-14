@@ -4,8 +4,11 @@ import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { getStripeClient } from "@/lib/stripe";
 import { siteUrl } from "@/lib/utils";
+import { isLocalMode } from "@/lib/app-mode";
 
 export async function createCheckoutSession(): Promise<void> {
+  if (isLocalMode()) redirect("/dashboard");
+
   const user = await getCurrentUser();
   if (!user) redirect("/login?next=/pricing");
 
@@ -45,6 +48,8 @@ export async function createCheckoutSession(): Promise<void> {
 }
 
 export async function createPortalSession(): Promise<void> {
+  if (isLocalMode()) redirect("/dashboard");
+
   const user = await getCurrentUser();
   if (!user || !user.stripeCustomerId) redirect("/pricing");
 

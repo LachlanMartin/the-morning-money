@@ -1,20 +1,29 @@
 import Link from "next/link";
 import { getCurrentUser } from "@/lib/auth";
 import { buttonVariants } from "@/components/ui/button";
+import { isLocalMode } from "@/lib/app-mode";
 
 export async function Header() {
   const user = await getCurrentUser();
+  const local = isLocalMode();
 
   return (
     <header className="sticky top-0 z-50 bg-background border-b-2 border-foreground">
       <div className="mx-auto flex w-full max-w-5xl items-center justify-between px-6 py-3 sm:py-4">
-        <Link
-          href={user ? "/dashboard" : "/"}
-          className="font-heading text-2xl sm:text-[clamp(28px,4vw,42px)] font-black tracking-tight no-underline leading-none hover:text-accent-link transition-colors"
-          style={{ fontFamily: "var(--font-heading-family)" }}
-        >
-          The Morning Money
-        </Link>
+        <div className="flex items-center gap-3">
+          <Link
+            href={user ? "/dashboard" : "/"}
+            className="font-heading text-2xl sm:text-[clamp(28px,4vw,42px)] font-black tracking-tight no-underline leading-none hover:text-accent-link transition-colors"
+            style={{ fontFamily: "var(--font-heading-family)" }}
+          >
+            The Morning Money
+          </Link>
+          {local && (
+            <span className="inline-flex items-center rounded-full border border-amber-300 bg-amber-50 dark:bg-amber-900/20 dark:border-amber-700 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-amber-700 dark:text-amber-400">
+              Local Mode
+            </span>
+          )}
+        </div>
 
         {/* Mobile hamburger */}
         <details className="sm:hidden group">
@@ -37,7 +46,7 @@ export async function Header() {
               >
                 Reports
               </Link>
-              {user.plan === "FREE" && (
+              {!local && user.plan === "FREE" && (
                 <Link
                   href="/pricing"
                   className="text-sm text-accent-link hover:text-accent-hover transition-colors font-mono text-xs uppercase tracking-wider"
@@ -45,19 +54,21 @@ export async function Header() {
                   Upgrade
                 </Link>
               )}
-              <form action="/auth/signout" method="post">
-                <button
-                  type="submit"
-                  className={buttonVariants({
-                    variant: "outline",
-                    size: "sm",
-                    className:
-                      "w-full text-xs font-mono tracking-wider uppercase h-9 transition-all hover:bg-foreground hover:text-background",
-                  })}
-                >
-                  Sign Out
-                </button>
-              </form>
+              {!local && (
+                <form action="/auth/signout" method="post">
+                  <button
+                    type="submit"
+                    className={buttonVariants({
+                      variant: "outline",
+                      size: "sm",
+                      className:
+                        "w-full text-xs font-mono tracking-wider uppercase h-9 transition-all hover:bg-foreground hover:text-background",
+                    })}
+                  >
+                    Sign Out
+                  </button>
+                </form>
+              )}
             </>
           ) : (
             <>
@@ -92,16 +103,13 @@ export async function Header() {
         <nav className="hidden sm:flex items-center gap-6">
           {user ? (
             <>
-              <span className="text-sm text-muted-foreground font-mono text-xs tracking-wider hidden sm:inline">
-                {user.email}
-              </span>
               <Link
                 href="/dashboard/reports"
                 className="text-sm text-muted-foreground hover:text-accent-link transition-colors font-mono text-xs uppercase tracking-wider"
               >
                 Reports
               </Link>
-              {user.plan === "FREE" && (
+              {!local && user.plan === "FREE" && (
                 <Link
                   href="/pricing"
                   className="text-sm text-accent-link hover:text-accent-hover transition-colors font-mono text-xs uppercase tracking-wider"
@@ -109,19 +117,21 @@ export async function Header() {
                   Upgrade
                 </Link>
               )}
-              <form action="/auth/signout" method="post">
-                <button
-                  type="submit"
-                  className={buttonVariants({
-                    variant: "outline",
-                    size: "sm",
-                    className:
-                      "text-xs font-mono tracking-wider uppercase h-8 transition-all hover:bg-foreground hover:text-background",
-                  })}
-                >
-                  Sign Out
-                </button>
-              </form>
+              {!local && (
+                <form action="/auth/signout" method="post">
+                  <button
+                    type="submit"
+                    className={buttonVariants({
+                      variant: "outline",
+                      size: "sm",
+                      className:
+                        "text-xs font-mono tracking-wider uppercase h-8 transition-all hover:bg-foreground hover:text-background",
+                    })}
+                  >
+                    Sign Out
+                  </button>
+                </form>
+              )}
             </>
           ) : (
             <>

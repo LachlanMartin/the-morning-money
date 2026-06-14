@@ -1,7 +1,10 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { updateSession } from "@/lib/supabase/middleware";
+import { isLocalMode } from "@/lib/app-mode";
 
 export async function proxy(request: NextRequest) {
+  if (isLocalMode()) return NextResponse.next({ request });
+
   try {
     return await updateSession(request);
   } catch {

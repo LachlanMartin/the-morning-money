@@ -2,8 +2,11 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { buttonVariants } from "@/components/ui/button";
+import { isLocalMode } from "@/lib/app-mode";
 
 export default async function HomePage() {
+  if (isLocalMode()) redirect("/dashboard");
+
   let user = null;
   try {
     const supabase = await createClient();

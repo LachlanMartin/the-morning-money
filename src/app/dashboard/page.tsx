@@ -4,13 +4,17 @@ import Link from "next/link";
 import { AddWatchlistForm } from "./AddWatchlistForm";
 import { WatchlistCard } from "./WatchlistCard";
 import { UpgradeToast } from "@/components/UpgradeToast";
+import { isLocalMode } from "@/lib/app-mode";
 
 const LIMITS = {
   FREE: { maxDistinctTickers: 20 },
   PAID: { maxDistinctTickers: 150 },
 } as const;
 
+const LOCAL_MAX_TICKERS = 999;
+
 export default async function DashboardPage() {
+  const local = isLocalMode();
   const user = await requireUser();
 
   const watchlists = await prisma.watchlist.findMany({
@@ -30,7 +34,9 @@ export default async function DashboardPage() {
     watchlists.flatMap((w) => w.tickers.map((t) => t.asxCode)),
   ).size;
 
-  const limit = LIMITS[user.plan];
+  const limit = local
+    ? { maxDistinctTickers: LOCAL_MAX_TICKERS }
+    : LIMITS[user.plan];
   const today = new Date();
   const dateStr = today.toLocaleDateString("en-AU", {
     weekday: "long",
@@ -39,7 +45,7 @@ export default async function DashboardPage() {
     day: "numeric",
   });
 
-  const trialDaysLeft = user.plan === "FREE" && user.trialExpiresAt
+  const trialDaysLeft = !local && user.plan === "FREE" && user.trialExpiresAt
     ? Math.max(0, Math.ceil((user.trialExpiresAt.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)))
     : null;
 
@@ -50,7 +56,7 @@ export default async function DashboardPage() {
 
   return (
     <div className="mx-auto w-full max-w-5xl px-6 py-8">
-      <UpgradeToast />
+      {!local && <UpgradeToast />}
 
       {/* Dateline */}
       <div className="flex items-center justify-between text-xs font-mono tracking-wider text-muted-foreground pb-3 border-b border-border">
@@ -63,11 +69,13 @@ export default async function DashboardPage() {
                 : `${trialDaysLeft} ${trialDaysLeft === 1 ? "day" : "days"} left`}
             </span>
           )}
-          <span
-            className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${planBadge}`}
-          >
-            {user.plan === "PAID" ? "Pro" : "Free"} Plan
-          </span>
+          {!local && (
+            <span
+              className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${planBadge}`}
+            >
+              {user.plan === "PAID" ? "Pro" : "Free"} Plan
+            </span>
+          )}
         </div>
       </div>
 
@@ -92,7 +100,7 @@ export default async function DashboardPage() {
         </Link>
       </div>
 
-      {/* Summary stats with usage limits */}
+      {/* Summary stats */}
       <div className="flex gap-8 items-baseline py-4 border-b border-border mb-6">
         <div className="flex items-baseline gap-1.5">
           <span
@@ -100,9 +108,11 @@ export default async function DashboardPage() {
             style={{ fontFamily: "var(--font-heading-family)" }}
           >
             {distinctTickers}
-            <span className="text-base font-normal text-muted-foreground">
-              /{limit.maxDistinctTickers}
-            </span>
+            {!local && (
+              <span className="text-base font-normal text-muted-foreground">
+                /{limit.maxDistinctTickers}
+              </span>
+            )}
           </span>
           <span className="text-sm text-muted-foreground uppercase font-mono text-xs tracking-wider">
             Unique Tickers

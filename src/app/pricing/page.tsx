@@ -1,9 +1,13 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { getCurrentUser, isTrialExpired } from "@/lib/auth";
 import { buttonVariants } from "@/components/ui/button";
+import { isLocalMode } from "@/lib/app-mode";
 import { createCheckoutSession, createPortalSession } from "./actions";
 
 export default async function PricingPage() {
+  if (isLocalMode()) redirect("/dashboard");
+
   const user = await getCurrentUser();
 
   const trialDaysLeft =
