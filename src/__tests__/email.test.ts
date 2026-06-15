@@ -134,21 +134,4 @@ describe("sendDigestEmail", () => {
     expect(html).toContain("DOWN");
   });
 
-  it("includes unsubscribe URL in email", async () => {
-    const mockSendMail = vi.fn().mockResolvedValue(undefined);
-    vi.mocked(getTransport).mockReturnValue({
-      sendMail: mockSendMail,
-      verify: vi.fn(),
-    } as never);
-
-    await sendDigestEmail(
-      "user@example.com",
-      [MOCK_ANALYSIS],
-      "Saturday 14 June 2026",
-    );
-
-    const html = mockSendMail.mock.calls[0][0].html;
-    expect(html).toContain("unsubscribe");
-    expect(html).toContain("/unsubscribe");
-  });
 });

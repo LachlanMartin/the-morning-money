@@ -1,5 +1,4 @@
 import { getTransport, getFromAddress } from "@/lib/smtp";
-import { siteUrl } from "@/lib/utils";
 
 type AnalysisForEmail = {
   asxCode: string;
@@ -25,7 +24,6 @@ function directionArrow(d: string): string {
 function buildEmailHtml(
   analyses: AnalysisForEmail[],
   dateStr: string,
-  unsubscribeUrl: string,
 ): string {
   const items = analyses
     .map(
@@ -116,8 +114,6 @@ function buildEmailHtml(
                 financial product advice.
               </p>
               <p style="font-family:Georgia,'Times New Roman',serif;font-size:12px;color:#6b6258;margin:0;">
-                <a href="${unsubscribeUrl}" style="color:#5b7a9a;text-decoration:underline;">Unsubscribe</a>
-                &nbsp;&middot;&nbsp;
                 &copy; 2026 The Morning Money
               </p>
             </td>
@@ -137,14 +133,12 @@ export async function sendDigestEmail(
 ): Promise<boolean> {
   const transport = getTransport();
   const from = getFromAddress();
-  const unsubscribeUrl = `${siteUrl()}/unsubscribe`;
-
   try {
     await transport.sendMail({
       from,
       to,
       subject: `Your Morning Money digest \u2014 ${dateStr}`,
-      html: buildEmailHtml(analyses, dateStr, unsubscribeUrl),
+      html: buildEmailHtml(analyses, dateStr),
     });
     return true;
   } catch (error) {

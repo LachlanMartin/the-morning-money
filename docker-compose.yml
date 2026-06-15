@@ -37,6 +37,7 @@ services:
     ports:
       - "3000:3000"
     environment:
+      - TZ=Australia/Sydney
       - LOCAL_USER_EMAIL=${LOCAL_USER_EMAIL:-you@email.com}
       - DATABASE_URL=postgresql://postgres:postgres@db:5432/morningmoney
       - DIRECT_URL=postgresql://postgres:postgres@db:5432/morningmoney
@@ -49,6 +50,8 @@ services:
       - SMTP_PASS=${SMTP_PASS:-}
       - SMTP_FROM=${SMTP_FROM:-Morning Money <daily@localhost>}
       - CRON_SECRET=${CRON_SECRET}
+    volumes:
+      - ./pdfs:/app/pdfs
     depends_on:
       db:
         condition: service_healthy
@@ -66,6 +69,7 @@ services:
         echo '0 10 * * 1-5 curl -sf http://app:3000/api/cron/daily-digest -H "Authorization: Bearer '"$CRON_SECRET"'"' | crontab -
         crond -f -l 2
     environment:
+      - TZ=Australia/Sydney
       - CRON_SECRET=${CRON_SECRET}
     depends_on:
       app:
