@@ -47,14 +47,9 @@ const { chat } = await import("@/lib/ollama");
 const { getTransport } = await import("@/lib/smtp");
 const { ingestAllWatchlistedTickers } = await import("@/lib/announcements");
 
-function mockOllamaResponse(summaryMd: string, sentiment = "NEUTRAL") {
+function mockOllamaResponse(summaryMd: string) {
   vi.mocked(chat).mockResolvedValue({
-    text: JSON.stringify({
-      summaryMd,
-      sentiment,
-      predictedDirection: "FLAT",
-      confidence: 0.75,
-    }),
+    text: summaryMd,
     model: "test-model",
   });
 }
@@ -218,10 +213,7 @@ describe("sendDigest", () => {
       data: {
         announcementId: announcement.id,
         summaryMd: "This is a test analysis summary.",
-        sentiment: "POSITIVE",
-        predictedDirection: "UP",
-        confidence: 0.88,
-        model: "claude-sonnet-4-20250514",
+        model: "test-model",
         promptVersion: "1.0",
       },
     });

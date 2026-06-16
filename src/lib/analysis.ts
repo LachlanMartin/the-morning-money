@@ -34,51 +34,18 @@ function getPDFParse(): ReturnType<typeof importPdfParse> {
   return pdfParsePromise;
 }
 
-const SYSTEM_PROMPT = `You are a financial news analyst at The Morning Money, a service that provides plain-English summaries of ASX (Australian Securities Exchange) announcements.
+const SYSTEM_PROMPT = `You are a news summarizer for The Morning Money, a service that provides plain-English summaries of ASX (Australian Securities Exchange) announcements.
 
-## Your role
-- Analyse ASX company announcements and produce clear, factual summaries.
-- Determine the sentiment (positive, negative, or neutral) of the announcement.
-- Predict the likely short-term direction of the company's stock.
-- Provide a confidence level for your assessment.
+Summarize the following ASX company announcement in 2-3 paragraphs. State objectively what was announced and any key details.
 
-## Constraints (Australian financial services law)
-You MUST NOT:
-- Give personal financial advice or recommendations.
-- Say "you should buy" or "you should sell" or "this is a good investment".
-- Consider any individual's portfolio, risk tolerance, or financial goals.
-- Make guarantees about future performance.
+Rules:
+- Use plain text only. No markdown, no formatting, no headings, no bullet points.
+- Do not give opinions, ratings, predictions, or analysis.
+- Do not say whether the news is good or bad for the company or its stock.
+- Do not speculate on stock price direction.
+- Just state the facts: what was announced, by whom, and any relevant dates or figures.`;
 
-You MAY:
-- Describe what the announcement says in plain language.
-- State whether the news is generally positive, negative, or neutral for the company.
-- Indicate what the market might reasonably infer from the information.
-- Include relevant context about the company's industry or sector.
-
-## Output format
-Respond with a JSON object containing:
-{
-  "summaryMd": "A 2-3 paragraph plain-English summary in markdown format",
-  "sentiment": "POSITIVE" | "NEUTRAL" | "NEGATIVE",
-  "predictedDirection": "UP" | "FLAT" | "DOWN",
-  "confidence": 0.75
-}
-
-- sentiment: The overall tone of the announcement for the company
-- predictedDirection: Expected short-term stock price direction based on the announcement
-- confidence: A value between 0 and 1 indicating how confident you are in your assessment
-  - 0.9+: Very clear, unambiguous announcement with clear implications
-  - 0.7-0.9: Reasonably clear implications
-  - 0.5-0.7: Mixed signals or ambiguous announcement
-  - Below 0.5: Highly ambiguous or insufficient information
-- summaryMd: 2-3 paragraphs that explain what was announced and why it matters, written in neutral journalistic style`;
-
-export type AnalysisResult = {
-  summaryMd: string;
-  sentiment: "POSITIVE" | "NEUTRAL" | "NEGATIVE";
-  predictedDirection: "UP" | "FLAT" | "DOWN";
-  confidence: number;
-};
+export type AnalysisResult = string;
 
 async function fetchPdfBuffer(key: string): Promise<Buffer> {
   if (isLocalKey(key)) return readPdf(key);
@@ -103,59 +70,41 @@ async function extractPdfText(buffer: Buffer): Promise<string> {
 async function runAnalysis(
   text: string,
   headline: string,
-): Promise<AnalysisResult> {
+): Promise<string> {
+  const truncated = text.length > 6000 ? text.slice(0, 6000) + "\n\n[truncated]" : text;
   const result = await chat({
     system: SYSTEM_PROMPT,
-    prompt: `Analyse this ASX announcement with headline "${headline}".\n\nFull text of the announcement:\n\n${text}`,
-    maxTokens: 2000,
+    prompt: `Summarize this ASX announcement with headline "${headline}".\n\nFull text of the announcement:\n\n${truncated}`,
+    maxTokens: 500,
   });
 
-  const json = extractJson(result.text);
-  return validateAnalysisResult(json);
+  const summary = validateAnalysisResult({ summaryMd: result.text });
+  return summary.summaryMd;
 }
 
-export function extractJson(text: string): Record<string, unknown> {
-  const match = text.match(/\{[\s\S]*\}/);
-  if (!match) throw new Error("No JSON found in Claude response");
-  return JSON.parse(match[0]);
+function stripMarkdown(text: string): string {
+  return text
+    .replace(/\*\*(.*?)\*\*/g, "$1")
+    .replace(/__(.*?)__/g, "$1")
+    .replace(/`([^`]*)`/g, "$1")
+    .replace(/^#+\s*/gm, "")
+    .replace(/^\s*[-*]\s+/gm, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
 }
 
 export function validateAnalysisResult(
   data: Record<string, unknown>,
-): AnalysisResult {
-  const validSentiments = ["POSITIVE", "NEUTRAL", "NEGATIVE"];
-  const validDirections = ["UP", "FLAT", "DOWN"];
-
+): { summaryMd: string } {
   if (typeof data.summaryMd !== "string" || !data.summaryMd.trim()) {
     throw new Error("Invalid or missing summaryMd");
   }
-  if (!validSentiments.includes(data.sentiment as string)) {
-    throw new Error(`Invalid sentiment: ${data.sentiment}`);
-  }
-  if (!validDirections.includes(data.predictedDirection as string)) {
-    throw new Error(`Invalid predictedDirection: ${data.predictedDirection}`);
-  }
-  if (
-    typeof data.confidence !== "number" ||
-    Number.isNaN(data.confidence) ||
-    data.confidence < 0 ||
-    data.confidence > 1
-  ) {
-    throw new Error(`Invalid confidence: ${data.confidence}`);
-  }
-
-  return {
-    summaryMd: data.summaryMd,
-    sentiment: data.sentiment as AnalysisResult["sentiment"],
-    predictedDirection:
-      data.predictedDirection as AnalysisResult["predictedDirection"],
-    confidence: data.confidence,
-  };
+  return { summaryMd: stripMarkdown(data.summaryMd) };
 }
 
 export async function analyzeAnnouncement(
   announcementId: string,
-): Promise<AnalysisResult> {
+): Promise<string> {
   const announcement = await prisma.announcement.findUnique({
     where: { id: announcementId },
   });
@@ -169,31 +118,23 @@ export async function analyzeAnnouncement(
   });
 
   if (existingAnalysis) {
-    return {
-      summaryMd: existingAnalysis.summaryMd,
-      sentiment: existingAnalysis.sentiment,
-      predictedDirection: existingAnalysis.predictedDirection,
-      confidence: existingAnalysis.confidence,
-    };
+    return existingAnalysis.summaryMd;
   }
 
   const pdfBuffer = await fetchPdfBuffer(announcement.pdfS3Key);
   const pdfText = await extractPdfText(pdfBuffer);
-  const result = await runAnalysis(pdfText, announcement.headline);
+  const summaryMd = await runAnalysis(pdfText, announcement.headline);
 
   await prisma.analysis.create({
     data: {
       announcementId,
-      summaryMd: result.summaryMd,
-      sentiment: result.sentiment,
-      predictedDirection: result.predictedDirection,
-      confidence: result.confidence,
+      summaryMd,
       model: getModelName(),
       promptVersion: CURRENT_PROMPT_VERSION,
     },
   });
 
-  return result;
+  return summaryMd;
 }
 
 export async function analyzeUnprocessedAnnouncements(): Promise<{

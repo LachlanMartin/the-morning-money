@@ -10,19 +10,25 @@ export async function GET(request: Request) {
   }
 
   const start = Date.now();
-  const result = await runDailyPipeline();
-  const duration = Date.now() - start;
 
-  const log = {
-    duration: `${(duration / 1000).toFixed(1)}s`,
-    announcementsFetched: result.announcementsFetched,
-    analyzed: result.analyzed,
-    digestsGenerated: result.digestsGenerated,
-    emailsSent: result.emailsSent,
-    errors: result.errors,
-  };
+  runDailyPipeline()
+    .then((result) => {
+      const duration = Date.now() - start;
+      console.log(
+        "[cron] daily-digest completed:",
+        JSON.stringify({
+          duration: `${(duration / 1000).toFixed(1)}s`,
+          announcementsFetched: result.announcementsFetched,
+          analyzed: result.analyzed,
+          digestsGenerated: result.digestsGenerated,
+          emailsSent: result.emailsSent,
+          errors: result.errors,
+        }),
+      );
+    })
+    .catch((err) => {
+      console.error("[cron] daily-digest failed:", err);
+    });
 
-  console.log("[cron] daily-digest completed:", JSON.stringify(log));
-
-  return NextResponse.json(log);
+  return NextResponse.json({ status: "started" });
 }

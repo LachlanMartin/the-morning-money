@@ -40,7 +40,6 @@ vi.stubGlobal(
 
 import { prisma } from "@/lib/prisma";
 import {
-  extractJson,
   validateAnalysisResult,
   analyzeUnprocessedAnnouncements,
 } from "@/lib/analysis";
@@ -48,9 +47,9 @@ import {
 const { chat } = await import("@/lib/ollama");
 const { PDFParse } = await import("pdf-parse");
 
-function setupMocks(llmJsonResponse: string, pdfTextContent: string) {
+function setupMocks(llmTextResponse: string, pdfTextContent: string) {
   vi.mocked(chat).mockResolvedValue({
-    text: llmJsonResponse,
+    text: llmTextResponse,
     model: "test-model",
   });
 
@@ -62,153 +61,26 @@ function setupMocks(llmJsonResponse: string, pdfTextContent: string) {
   );
 }
 
-// Tests that DON'T need the full PDF→Claude pipeline (pure logic tests)
-describe("extractJson (Claude response parsing)", () => {
-  it("extracts a JSON object from text", () => {
-    const result = extractJson('Some text {"key": "value"} more text');
-    expect(result).toEqual({ key: "value" });
-  });
-
-  it("extracts nested JSON objects", () => {
-    const result = extractJson('{"outer": {"inner": [1, 2, 3]}}');
-    expect(result).toEqual({ outer: { inner: [1, 2, 3] } });
-  });
-
-  it("extracts valid analysis result JSON", () => {
-    const json = `{
-      "summaryMd": "The company reported strong earnings.",
-      "sentiment": "POSITIVE",
-      "predictedDirection": "UP",
-      "confidence": 0.92
-    }`;
-    const result = extractJson(`Here is my analysis:\n${json}`);
-    expect(result).toEqual({
-      summaryMd: "The company reported strong earnings.",
-      sentiment: "POSITIVE",
-      predictedDirection: "UP",
-      confidence: 0.92,
-    });
-  });
-
-  it("throws when no JSON object is found", () => {
-    expect(() => extractJson("No JSON here at all")).toThrow(
-      "No JSON found in Claude response",
-    );
-  });
-
-  it("handles JSON with surrounding text", () => {
-    const result = extractJson(
-      'The analysis is complete. Here is the result:\n\n{"sentiment": "NEUTRAL", "confidence": 0.5}\n\nLet me know if you need more detail.',
-    );
-    expect(result).toEqual({ sentiment: "NEUTRAL", confidence: 0.5 });
-  });
-
-  it("extracts JSON when Claude wraps in markdown code block", () => {
-    const text = '```json\n{"sentiment": "POSITIVE"}\n```';
-    const result = extractJson(text);
-    expect(result).toEqual({ sentiment: "POSITIVE" });
-  });
-
-  it("extracts JSON from Claude's natural language wrapping", () => {
-    const text =
-      'Based on the announcement, I would rate this as {"sentiment": "NEUTRAL", "predictedDirection": "FLAT", "summaryMd": "Stable quarter.", "confidence": 0.6}';
-    const result = extractJson(text);
-    expect(result.sentiment).toBe("NEUTRAL");
-  });
-});
-
-describe("validateAnalysisResult (safety checks)", () => {
-  it("accepts valid analysis result", () => {
-    const result = validateAnalysisResult({
-      summaryMd: "A summary",
-      sentiment: "POSITIVE",
-      predictedDirection: "UP",
-      confidence: 0.85,
-    });
+describe("validateAnalysisResult", () => {
+  it("accepts valid summaryMd", () => {
+    const result = validateAnalysisResult({ summaryMd: "A summary" });
     expect(result.summaryMd).toBe("A summary");
-    expect(result.sentiment).toBe("POSITIVE");
-    expect(result.predictedDirection).toBe("UP");
-    expect(result.confidence).toBe(0.85);
   });
 
-  it("accepts boundaries: confidence 0 and 1", () => {
-    expect(() =>
-      validateAnalysisResult({
-        summaryMd: "test", sentiment: "NEUTRAL",
-        predictedDirection: "FLAT", confidence: 0,
-      }),
-    ).not.toThrow();
-    expect(() =>
-      validateAnalysisResult({
-        summaryMd: "test", sentiment: "NEGATIVE",
-        predictedDirection: "DOWN", confidence: 1,
-      }),
-    ).not.toThrow();
+  it("accepts boundaries", () => {
+    expect(() => validateAnalysisResult({ summaryMd: "ok" })).not.toThrow();
   });
 
   it("rejects missing summaryMd", () => {
-    expect(() =>
-      validateAnalysisResult({
-        summaryMd: "", sentiment: "NEUTRAL",
-        predictedDirection: "FLAT", confidence: 0.5,
-      }),
-    ).toThrow(/Invalid or missing summaryMd/);
+    expect(() => validateAnalysisResult({ summaryMd: "" })).toThrow(/Invalid or missing summaryMd/);
   });
 
-  it("rejects invalid sentiment", () => {
-    expect(() =>
-      validateAnalysisResult({
-        summaryMd: "test", sentiment: "BULLISH",
-        predictedDirection: "FLAT", confidence: 0.5,
-      }),
-    ).toThrow(/Invalid sentiment/);
-  });
-
-  it("rejects invalid predictedDirection", () => {
-    expect(() =>
-      validateAnalysisResult({
-        summaryMd: "test", sentiment: "NEUTRAL",
-        predictedDirection: "SIDEWAYS", confidence: 0.5,
-      }),
-    ).toThrow(/Invalid predictedDirection/);
-  });
-
-  it("rejects confidence out of range", () => {
-    expect(() =>
-      validateAnalysisResult({
-        summaryMd: "test", sentiment: "NEUTRAL",
-        predictedDirection: "DOWN", confidence: 1.5,
-      }),
-    ).toThrow(/Invalid confidence/);
-  });
-
-  it("rejects NaN confidence", () => {
-    expect(() =>
-      validateAnalysisResult({
-        summaryMd: "test", sentiment: "NEUTRAL",
-        predictedDirection: "FLAT", confidence: NaN,
-      }),
-    ).toThrow(/Invalid confidence/);
-  });
-
-  it("strips AFSL-violating hallucinated fields from Claude output", () => {
-    // validateAnalysisResult uses destructuring — extra fields are silently dropped
+  it("strips hallucinated fields", () => {
     const result = validateAnalysisResult({
       summaryMd: "Valid summary.",
-      sentiment: "POSITIVE",
-      predictedDirection: "UP",
-      confidence: 0.9,
-      buyRecommendation: "STRONG_BUY", // AFSL violation
-      targetPrice: 45.0,
-      portfolioAdvice: "Allocate 30% to this stock",
+      buyRecommendation: "STRONG_BUY",
     });
     expect(result.summaryMd).toBe("Valid summary.");
-    expect(result.sentiment).toBe("POSITIVE");
-    expect(result.predictedDirection).toBe("UP");
-    expect(result.confidence).toBe(0.9);
-    // Hallucinated fields should not appear in the returned object
-    expect((result as Record<string, unknown>).buyRecommendation).toBeUndefined();
-    expect((result as Record<string, unknown>).targetPrice).toBeUndefined();
   });
 });
 

@@ -6,19 +6,13 @@ import { describe, it, expect } from "vitest";
 const MOCK_ANALYSIS = {
   asxCode: "BHP",
   headline: "BHP reports record iron ore production",
-  summaryMd: "BHP announced record production of **300Mt**.\n\nRevenue up 12% YoY.",
-  sentiment: "POSITIVE" as const,
-  predictedDirection: "UP" as const,
-  confidence: 0.85,
+  summaryMd: "BHP announced record production of 300Mt. Revenue up 12% YoY.",
 };
 
 const MOCK_ANALYSIS_NEGATIVE = {
   asxCode: "CBA",
   headline: "CBA flags rising loan impairments",
   summaryMd: "CBA warned of increasing defaults.",
-  sentiment: "NEGATIVE" as const,
-  predictedDirection: "DOWN" as const,
-  confidence: 0.72,
 };
 
 // We can't import private functions, so we test the full send path
@@ -56,7 +50,6 @@ describe("sendDigestEmail", () => {
     expect(call.subject).toContain("Monday 9 June 2026");
     expect(call.html).toContain("BHP reports record iron ore production");
     expect(call.html).toContain("BHP");
-    expect(call.html).toContain("85% confidence");
     expect(call.html).toContain("The Morning Money");
   });
 
@@ -111,7 +104,7 @@ describe("sendDigestEmail", () => {
     expect(html).toContain("No announcements for your watchlists today");
   });
 
-  it("renders sentiment labels and arrows correctly", async () => {
+  it("renders summary as plain text in the HTML", async () => {
     const mockSendMail = vi.fn().mockResolvedValue(undefined);
     vi.mocked(getTransport).mockReturnValue({
       sendMail: mockSendMail,
@@ -120,18 +113,13 @@ describe("sendDigestEmail", () => {
 
     await sendDigestEmail(
       "user@example.com",
-      [MOCK_ANALYSIS, MOCK_ANALYSIS_NEGATIVE],
+      [MOCK_ANALYSIS],
       "Friday 13 June 2026",
     );
 
     const html = mockSendMail.mock.calls[0][0].html;
-    // Positive sentiment styling
-    expect(html).toMatch(/Positive/);
-    // Negative sentiment styling
-    expect(html).toMatch(/Negative/);
-    // Direction arrows
-    expect(html).toContain("UP");
-    expect(html).toContain("DOWN");
+    expect(html).toContain("BHP reports record iron ore production");
+    expect(html).toContain("BHP announced record production");
   });
 
 });

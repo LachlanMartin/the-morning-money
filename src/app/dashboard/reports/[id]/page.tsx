@@ -2,24 +2,6 @@ import { notFound } from "next/navigation";
 import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
-function sentimentLabel(s: string): string {
-  if (s === "POSITIVE") return "Positive";
-  if (s === "NEGATIVE") return "Negative";
-  return "Neutral";
-}
-
-function sentimentColor(s: string): string {
-  if (s === "POSITIVE") return "text-green-700 dark:text-green-400";
-  if (s === "NEGATIVE") return "text-red-700 dark:text-red-400";
-  return "text-muted-foreground";
-}
-
-function directionArrow(d: string): string {
-  if (d === "UP") return "\u2191";
-  if (d === "DOWN") return "\u2193";
-  return "\u2192";
-}
-
 export default async function ReportDetailPage({
   params,
 }: {
@@ -105,18 +87,6 @@ export default async function ReportDetailPage({
               <p className="text-[15px] leading-relaxed text-foreground mb-3 font-sans whitespace-pre-line">
                 {a.summaryMd}
               </p>
-              <div className="flex items-center gap-2 font-mono text-xs tracking-wider text-muted-foreground">
-                <span className={sentimentColor(a.sentiment)}>
-                  {sentimentLabel(a.sentiment)}
-                </span>
-                <span>&middot;</span>
-                <span>
-                  {directionArrow(a.predictedDirection)}{" "}
-                  {a.predictedDirection}
-                </span>
-                <span>&middot;</span>
-                <span>{Math.round(a.confidence * 100)}% confidence</span>
-              </div>
             </article>
           ))}
         </div>

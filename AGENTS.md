@@ -35,6 +35,8 @@ Pre-existing type error in `src/__tests__/analysis-ai.test.ts` (pdf-parse type m
 
 Rebuild Docker after code changes: `docker compose up -d --build app`.
 
+If Ollama runners hang at 940% CPU after pipeline run, restart the container: `docker compose restart ollama`.
+
 ## Dev setup
 
 ```bash

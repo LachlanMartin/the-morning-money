@@ -4,22 +4,7 @@ type AnalysisForEmail = {
   asxCode: string;
   headline: string;
   summaryMd: string;
-  sentiment: "POSITIVE" | "NEUTRAL" | "NEGATIVE";
-  predictedDirection: "UP" | "FLAT" | "DOWN";
-  confidence: number;
 };
-
-function sentimentLabel(s: string): string {
-  if (s === "POSITIVE") return "Positive";
-  if (s === "NEGATIVE") return "Negative";
-  return "Neutral";
-}
-
-function directionArrow(d: string): string {
-  if (d === "UP") return "\u2191";
-  if (d === "DOWN") return "\u2193";
-  return "\u2192";
-}
 
 function buildEmailHtml(
   analyses: AnalysisForEmail[],
@@ -44,15 +29,6 @@ function buildEmailHtml(
           <tr>
             <td style="font-family:Georgia,'Times New Roman',serif;font-size:15px;line-height:1.6;color:#1a1a1a;padding-bottom:10px;">
               ${a.summaryMd.replace(/\n/g, "<br>")}
-            </td>
-          </tr>
-          <tr>
-            <td style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#6b6258;">
-              <span style="color:${a.sentiment === "POSITIVE" ? "#1a7a3a" : a.sentiment === "NEGATIVE" ? "#b33a3a" : "#6b6258"}">${sentimentLabel(a.sentiment)}</span>
-              &nbsp;&middot;&nbsp;
-              ${directionArrow(a.predictedDirection)} ${a.predictedDirection}
-              &nbsp;&middot;&nbsp;
-              ${Math.round(a.confidence * 100)}% confidence
             </td>
           </tr>
         </table>

@@ -107,9 +107,6 @@ export async function sendDigest(
       asxCode: a.announcement.asxCode,
       headline: a.announcement.headline,
       summaryMd: a.summaryMd,
-      sentiment: a.sentiment as "POSITIVE" | "NEUTRAL" | "NEGATIVE",
-      predictedDirection: a.predictedDirection as "UP" | "FLAT" | "DOWN",
-      confidence: a.confidence,
     })),
     dateStr,
   );
