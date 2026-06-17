@@ -65,7 +65,7 @@ services:
       - /bin/sh
       - -c
       - |
-        apk add --no-cache curl
+        apk add --no-cache curl tzdata
         echo '0 10 * * 1-5 curl -sf http://app:3000/api/cron/daily-digest -H "Authorization: Bearer '"$CRON_SECRET"'"' | crontab -
         crond -f -l 2
     environment:
