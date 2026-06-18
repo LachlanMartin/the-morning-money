@@ -2,7 +2,43 @@ import { prisma } from "@/lib/prisma";
 import { chat, getModelName } from "@/lib/ollama";
 import { readPdf, isLocalKey } from "@/lib/storage";
 
-const CURRENT_PROMPT_VERSION = "1.0";
+const CURRENT_PROMPT_VERSION = "2.0";
+
+const ANALYSIS_COMPLEXITY = process.env.ANALYSIS_COMPLEXITY || "plain";
+
+const COMPLEXITY_GUIDES: Record<string, string> = {
+  plain: `You are writing for readers with no financial background. Use simple, everyday language. Explain financial terms or acronyms the first time they appear (e.g., "earnings per share (EPS), which measures profit divided by total shares"). Focus on practical, real-world implications. Avoid jargon.`,
+  informed: `You are writing for readers with basic investing knowledge. Use standard financial terminology (EPS, dividend, ASX, market cap, P/E ratio). Assume familiarity with common market concepts.`,
+  professional: `You are writing for finance professionals. Use precise technical terminology (EBITDA, CAGR, DCF, EV/EBITDA, accretion/dilution, basis points). Do not simplify or explain standard financial concepts.`,
+};
+
+function buildSystemPrompt(complexity: string): string {
+  const guide = COMPLEXITY_GUIDES[complexity] ?? COMPLEXITY_GUIDES.plain;
+
+  return `You are a news analyst for The Morning Money, a service that helps investors understand ASX (Australian Securities Exchange) announcements and what they mean for shareholders.
+
+${guide}
+
+For each announcement, provide a summary with two clearly separated sections. Use the exact section headers shown:
+
+WHAT HAPPENED
+[1-2 paragraphs: State what was announced, by whom, and the key facts — dates, figures, parties involved. Be concise and objective.]
+
+STAKEHOLDER IMPACT
+[2-3 paragraphs: Explain why this matters to shareholders. Cover whichever of the following are relevant:
+- Direct financial impact: earnings, dividends, capital structure, dilution
+- Strategic significance: new markets, products, acquisitions, partnerships, competitive position
+- Governance and risk: board changes, regulatory actions, legal matters, compliance issues
+
+Focus on the practical implications for shareholders. Do not give buy/sell/hold advice.]
+
+Rules:
+- Use plain text only. No markdown, no formatting, no bullet points.
+- Do not give investment advice or recommend buying, selling, or holding.
+- Do not predict stock price direction or magnitude.`;
+}
+
+const SYSTEM_PROMPT = buildSystemPrompt(ANALYSIS_COMPLEXITY);
 
 // pdfjs-dist needs browser DOMMatrix in Node.js — polyfill at first use
 function polyfillDomMatrix() {
@@ -34,17 +70,6 @@ function getPDFParse(): ReturnType<typeof importPdfParse> {
   return pdfParsePromise;
 }
 
-const SYSTEM_PROMPT = `You are a news summarizer for The Morning Money, a service that provides plain-English summaries of ASX (Australian Securities Exchange) announcements.
-
-Summarize the following ASX company announcement in 2-3 paragraphs. State objectively what was announced and any key details.
-
-Rules:
-- Use plain text only. No markdown, no formatting, no headings, no bullet points.
-- Do not give opinions, ratings, predictions, or analysis.
-- Do not say whether the news is good or bad for the company or its stock.
-- Do not speculate on stock price direction.
-- Just state the facts: what was announced, by whom, and any relevant dates or figures.`;
-
 export type AnalysisResult = string;
 
 async function fetchPdfBuffer(key: string): Promise<Buffer> {
@@ -74,8 +99,8 @@ async function runAnalysis(
   const truncated = text.length > 6000 ? text.slice(0, 6000) + "\n\n[truncated]" : text;
   const result = await chat({
     system: SYSTEM_PROMPT,
-    prompt: `Summarize this ASX announcement with headline "${headline}".\n\nFull text of the announcement:\n\n${truncated}`,
-    maxTokens: 500,
+    prompt: `Analyze this ASX announcement with headline "${headline}" using the WHAT HAPPENED / STAKEHOLDER IMPACT format.\n\nFull text of the announcement:\n\n${truncated}`,
+    maxTokens: 700,
   });
 
   const summary = validateAnalysisResult({ summaryMd: result.text });
@@ -131,6 +156,7 @@ export async function analyzeAnnouncement(
       summaryMd,
       model: getModelName(),
       promptVersion: CURRENT_PROMPT_VERSION,
+      complexity: ANALYSIS_COMPLEXITY,
     },
   });
 

@@ -71,6 +71,7 @@ model Analysis {
   summaryMd       String
   model           String
   promptVersion   String
+  complexity      String    @default("plain")
   createdAt       DateTime  @default(now())
 
   announcement Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
