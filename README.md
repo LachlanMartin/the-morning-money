@@ -11,7 +11,7 @@
 
 Plain-English summaries of ASX announcements for the tickers you watch. Delivered every morning.
 
-**Zero external accounts required.** `git clone && docker compose up` gives you a fully working app — local LLM, local email, local storage.
+**Self-contained stack.** `git clone && docker compose up` gives you a working app — local Postgres, local email capture, local LLM fallback. Add an Anthropic API key for sharper analysis.
 
 ---
 
@@ -21,6 +21,7 @@ Plain-English summaries of ASX announcements for the tickers you watch. Delivere
 git clone https://github.com/LachlanMartin/the-morning-money
 cd the-morning-money
 cp .env.example .env
+# Optional: add ANTHROPIC_API_KEY=sk-ant-... to .env for sharper analysis
 docker compose up -d
 
 # One-time setup:
@@ -51,16 +52,18 @@ pnpm run dev
 
 ## Digest Pipeline
 
-Fetches ASX announcements, analyses via Ollama, emails a summary. Runs weekdays at 10am AEST via cron sidecar.
+Fetches ASX announcements, analyses via Anthropic API (or Ollama as fallback), emails a summary. Runs weekdays at 10am AEST via cron sidecar.
+
+Sent via local SMTP in Docker, or via Resend with `SMTP_*` env vars.
 
 ```bash
 ./scripts/trigger-digest.sh
 ```
 
 1. **Ingest** — fetch ASX announcements for watchlisted tickers, download PDFs
-2. **Analyse** — send unprocessed PDFs to Ollama for summary + sentiment + direction
+2. **Analyse** — send unprocessed PDFs to Anthropic (or Ollama) for markdown summary + sentiment + direction + confidence
 3. **Digest** — create `DigestRun` per active user with their tickers' analysis IDs
-4. **Email** — send digest via SMTP (Mailpit by default)
+4. **Email** — send digest via SMTP (Mailpit by default), rendered as markdown→HTML
 
 Idempotent: announcements deduped by `sourceHash`, at most one email per user/day.
 
@@ -96,7 +99,9 @@ See `.env.example` for all variables.
 |----------|---------|-------|
 | `LOCAL_USER_EMAIL` | `you@email.com` | Single user auto-created |
 | `CRON_SECRET` | — | Shared secret for `/api/cron/daily-digest` |
-| `OLLAMA_MODEL` | `gemma3:12b` | Swap for `mistral:7b`, `llama3.2:3b`, etc. |
+| `ANTHROPIC_API_KEY` | — | Optional: use Claude for analysis instead of Ollama |
+| `ANTHROPIC_MODEL` | `claude-sonnet-4-20250514` | Anthropic model to use |
+| `OLLAMA_MODEL` | `gemma3:12b` | Fallback when `ANTHROPIC_API_KEY` not set |
 
 ## License
 

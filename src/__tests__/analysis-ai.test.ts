@@ -1,5 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
+// Mock AI client
+vi.mock("@/lib/ai", () => ({
+  chat: vi.fn(),
+  getModelName: vi.fn().mockReturnValue("test-model"),
+  hasApiKey: vi.fn().mockReturnValue(false),
+}));
+
 // Mock Ollama client
 vi.mock("@/lib/ollama", () => ({
   chat: vi.fn(),
@@ -62,25 +69,31 @@ function setupMocks(llmTextResponse: string, pdfTextContent: string) {
 }
 
 describe("validateAnalysisResult", () => {
-  it("accepts valid summaryMd", () => {
-    const result = validateAnalysisResult({ summaryMd: "A summary" });
-    expect(result.summaryMd).toBe("A summary");
+  it("accepts valid response with all fields", () => {
+    const raw = `## Profit smashes expectations
+
+The company reported a **12% jump** in half-year profit, beating consensus estimates by a wide margin. Revenue climbed 8% off the back of strong demand in the resources division.
+
+Shareholders should be pleased — this is the third consecutive beat, and management flagged a potential special dividend in Q4.
+
+{"sentiment":"POSITIVE","predictedDirection":"UP","confidence":0.82}`;
+    const result = validateAnalysisResult(raw);
+    expect(result.summaryMd).toContain("## Profit smashes expectations");
+    expect(result.sentiment).toBe("POSITIVE");
+    expect(result.predictedDirection).toBe("UP");
+    expect(result.confidence).toBe(0.82);
   });
 
-  it("accepts boundaries", () => {
-    expect(() => validateAnalysisResult({ summaryMd: "ok" })).not.toThrow();
+  it("rejects response without JSON block", () => {
+    expect(() => validateAnalysisResult("Just text without JSON")).toThrow(
+      "No JSON block found",
+    );
   });
 
-  it("rejects missing summaryMd", () => {
-    expect(() => validateAnalysisResult({ summaryMd: "" })).toThrow(/Invalid or missing summaryMd/);
-  });
-
-  it("strips hallucinated fields", () => {
-    const result = validateAnalysisResult({
-      summaryMd: "Valid summary.",
-      buyRecommendation: "STRONG_BUY",
-    });
-    expect(result.summaryMd).toBe("Valid summary.");
+  it("rejects missing summary text before JSON", () => {
+    expect(() =>
+      validateAnalysisResult('{"sentiment":"POSITIVE","predictedDirection":"UP","confidence":0.5}'),
+    ).toThrow("Missing summary text before JSON block");
   });
 });
 

@@ -78,14 +78,14 @@ function EditableName({
   const [state, action, pending] = useActionState(renameWatchlist, initial);
   const inputRef = useRef<HTMLInputElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
+  const prevError = useRef<string | null>(null);
 
   useEffect(() => {
-    if (!state.error) setEditing(false);
-  }, [state]);
-
-  useEffect(() => {
-    setName(initialName);
-  }, [initialName]);
+    if (prevError.current !== null && state.error === null) {
+      setEditing(false);
+    }
+    prevError.current = state.error;
+  }, [state.error]);
 
   useEffect(() => {
     if (editing) inputRef.current?.select();
@@ -136,7 +136,10 @@ function EditableName({
       </h3>
       <button
         type="button"
-        onClick={() => setEditing(true)}
+        onClick={() => {
+          setName(initialName);
+          setEditing(true);
+        }}
         className="inline-flex items-center text-muted-foreground/40 hover:text-muted-foreground/70 transition-colors"
         aria-label="Edit watchlist name"
       >
@@ -185,6 +188,7 @@ function AddTickerForm({ watchlistId }: { watchlistId: string }) {
   const [highlightIdx, setHighlightIdx] = useState(-1);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
+  const prevError = useRef<string | null>(null);
 
   const fetchResults = useCallback(async (q: string) => {
     if (q.trim().length < 1) {
@@ -205,13 +209,14 @@ function AddTickerForm({ watchlistId }: { watchlistId: string }) {
   }, []);
 
   useEffect(() => {
-    if (!state.error) {
+    if (prevError.current !== null && state.error === null) {
       ref.current?.reset();
       setQuery("");
       setResults([]);
       setOpen(false);
     }
-  }, [state]);
+    prevError.current = state.error;
+  }, [state.error]);
 
   useEffect(() => {
     const timer = setTimeout(() => fetchResults(query), 150);

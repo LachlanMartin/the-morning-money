@@ -6,13 +6,19 @@ import { describe, it, expect } from "vitest";
 const MOCK_ANALYSIS = {
   asxCode: "BHP",
   headline: "BHP reports record iron ore production",
-  summaryMd: "BHP announced record production of 300Mt. Revenue up 12% YoY.",
+  summaryMd: "## BHP cashes in on China's hunger\n\nBHP announced record production of **300Mt**. Revenue up 12% YoY. Margins expanded as iron ore prices held above $100/tonne.\n\nThe dividend got a 10% bump, and buybacks are on the table for Q4.",
+  sentiment: "POSITIVE",
+  predictedDirection: "UP",
+  confidence: 0.78,
 };
 
 const MOCK_ANALYSIS_NEGATIVE = {
   asxCode: "CBA",
   headline: "CBA flags rising loan impairments",
-  summaryMd: "CBA warned of increasing defaults.",
+  summaryMd: "## CBA sees cracks in the credit book\n\nCBA warned of increasing defaults in its home loan portfolio. Provisions jumped 22% from the prior half.\n\nNot a panic moment yet, but the trend line is heading the wrong way.",
+  sentiment: "NEGATIVE",
+  predictedDirection: "DOWN",
+  confidence: 0.65,
 };
 
 // We can't import private functions, so we test the full send path
@@ -48,7 +54,7 @@ describe("sendDigestEmail", () => {
     expect(call.to).toBe("user@example.com");
     expect(call.from).toContain("Morning Money");
     expect(call.subject).toContain("Monday 9 June 2026");
-    expect(call.html).toContain("BHP reports record iron ore production");
+    expect(call.html).toContain("BHP cashes in on China");
     expect(call.html).toContain("BHP");
     expect(call.html).toContain("The Morning Money");
   });
@@ -83,8 +89,8 @@ describe("sendDigestEmail", () => {
     );
 
     const html = mockSendMail.mock.calls[0][0].html;
-    expect(html).toContain("BHP reports record iron ore production");
-    expect(html).toContain("CBA flags rising loan impairments");
+    expect(html).toContain("BHP cashes in on China");
+    expect(html).toContain("CBA sees cracks in the credit book");
   });
 
   it("handles empty analyses array (no announcements email)", async () => {
@@ -104,7 +110,7 @@ describe("sendDigestEmail", () => {
     expect(html).toContain("No announcements for your watchlists today");
   });
 
-  it("renders summary as plain text in the HTML", async () => {
+  it("renders summary markdown as HTML", async () => {
     const mockSendMail = vi.fn().mockResolvedValue(undefined);
     vi.mocked(getTransport).mockReturnValue({
       sendMail: mockSendMail,
@@ -118,8 +124,8 @@ describe("sendDigestEmail", () => {
     );
 
     const html = mockSendMail.mock.calls[0][0].html;
-    expect(html).toContain("BHP reports record iron ore production");
-    expect(html).toContain("BHP announced record production");
+    expect(html).toContain("BHP cashes in on China");
+    expect(html).toContain("record production");
   });
 
 });

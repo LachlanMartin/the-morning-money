@@ -43,6 +43,8 @@ services:
       - DIRECT_URL=postgresql://postgres:postgres@db:5432/morningmoney
       - OLLAMA_BASE_URL=http://ollama:11434
       - OLLAMA_MODEL=${OLLAMA_MODEL:-qwen2.5:1.5b}
+      - OPECODE_GO_API_KEY=${OPECODE_GO_API_KEY:-}
+      - OPECODE_GO_MODEL=${OPECODE_GO_MODEL:-deepseek-v4-flash}
       - SMTP_HOST=${SMTP_HOST:-mailpit}
       - SMTP_PORT=${SMTP_PORT:-1025}
       - SMTP_SECURE=${SMTP_SECURE:-false}

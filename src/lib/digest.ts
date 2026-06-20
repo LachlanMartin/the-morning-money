@@ -107,6 +107,9 @@ export async function sendDigest(
       asxCode: a.announcement.asxCode,
       headline: a.announcement.headline,
       summaryMd: a.summaryMd,
+      sentiment: a.sentiment,
+      predictedDirection: a.predictedDirection,
+      confidence: a.confidence,
     })),
     dateStr,
   );

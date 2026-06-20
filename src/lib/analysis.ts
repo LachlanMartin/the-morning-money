@@ -1,8 +1,10 @@
 import { prisma } from "@/lib/prisma";
-import { chat, getModelName } from "@/lib/ollama";
+import { chat as anthropicChat, getModelName as anthropicModelName, hasApiKey } from "@/lib/ai";
+import { chat as ollamaChat, getModelName as ollamaModelName } from "@/lib/ollama";
+import { Sentiment, Direction } from "@/generated/prisma/client";
 import { readPdf, isLocalKey } from "@/lib/storage";
 
-const CURRENT_PROMPT_VERSION = "2.0";
+const CURRENT_PROMPT_VERSION = "3.0";
 
 const ANALYSIS_COMPLEXITY = process.env.ANALYSIS_COMPLEXITY || "plain";
 
@@ -15,30 +17,40 @@ const COMPLEXITY_GUIDES: Record<string, string> = {
 function buildSystemPrompt(complexity: string): string {
   const guide = COMPLEXITY_GUIDES[complexity] ?? COMPLEXITY_GUIDES.plain;
 
-  return `You are a news analyst for The Morning Money, a service that helps investors understand ASX (Australian Securities Exchange) announcements and what they mean for shareholders.
+  return `You are a news analyst for The Morning Money, a service that helps investors understand ASX (Australian Securities Exchange) announcements. Your tone is sharp, conversational, and entertaining — like a well-read friend breaking down business news at the pub. Use analogies, be direct, call out what matters. If something is bullish, say why. If it's bearish, don't sugarcoat. Avoid bureaucratic corporate-speak.
 
 ${guide}
 
-For each announcement, provide a summary with two clearly separated sections. Use the exact section headers shown:
+For each announcement, write a concise summary (no more than 3 paragraphs) in markdown format.
 
-WHAT HAPPENED
-[1-2 paragraphs: State what was announced, by whom, and the key facts — dates, figures, parties involved. Be concise and objective.]
-
-STAKEHOLDER IMPACT
-[2-3 paragraphs: Explain why this matters to shareholders. Cover whichever of the following are relevant:
-- Direct financial impact: earnings, dividends, capital structure, dilution
-- Strategic significance: new markets, products, acquisitions, partnerships, competitive position
-- Governance and risk: board changes, regulatory actions, legal matters, compliance issues
-
-Focus on the practical implications for shareholders. Do not give buy/sell/hold advice.]
+Start with a level-2 heading (##) that captures the announcement's essence — you can be creative. Examples of good headings:
+- ## BHP cashes in on China's insatiable hunger
+- ## CBA rewards shareholders but the spotlight's on expenses
+- ## Wesfarmers spins the wheel on another acquisition
 
 Rules:
-- Use plain text only. No markdown, no formatting, no bullet points.
+- Markdown only: use ##, **bold**, _italic_, \`code\` as needed.
+- Do not exceed 3 paragraphs after the heading.
 - Do not give investment advice or recommend buying, selling, or holding.
-- Do not predict stock price direction or magnitude.`;
+- This is general information and sentiment only.
+
+After the summary, append a JSON assessment on its own line:
+{"sentiment":"POSITIVE","predictedDirection":"UP","confidence":0.75}
+
+Sentiment must be one of: POSITIVE, NEUTRAL, NEGATIVE.
+Predicted direction must be one of: UP, FLAT, DOWN.
+Confidence must be a number between 0.0 and 1.0.`;
 }
 
 const SYSTEM_PROMPT = buildSystemPrompt(ANALYSIS_COMPLEXITY);
+
+function getChat() {
+  return hasApiKey() ? anthropicChat : ollamaChat;
+}
+
+function getModelName() {
+  return hasApiKey() ? anthropicModelName() : ollamaModelName();
+}
 
 // pdfjs-dist needs browser DOMMatrix in Node.js — polyfill at first use
 function polyfillDomMatrix() {
@@ -70,7 +82,12 @@ function getPDFParse(): ReturnType<typeof importPdfParse> {
   return pdfParsePromise;
 }
 
-export type AnalysisResult = string;
+export type AnalysisResult = {
+  summaryMd: string;
+  sentiment: Sentiment;
+  predictedDirection: Direction;
+  confidence: number;
+};
 
 async function fetchPdfBuffer(key: string): Promise<Buffer> {
   if (isLocalKey(key)) return readPdf(key);
@@ -95,41 +112,56 @@ async function extractPdfText(buffer: Buffer): Promise<string> {
 async function runAnalysis(
   text: string,
   headline: string,
-): Promise<string> {
+): Promise<AnalysisResult> {
   const truncated = text.length > 6000 ? text.slice(0, 6000) + "\n\n[truncated]" : text;
-  const result = await chat({
+  const result = await getChat()({
     system: SYSTEM_PROMPT,
-    prompt: `Analyze this ASX announcement with headline "${headline}" using the WHAT HAPPENED / STAKEHOLDER IMPACT format.\n\nFull text of the announcement:\n\n${truncated}`,
-    maxTokens: 700,
+    prompt: `Analyze this ASX announcement with headline "${headline}".\n\nFull text of the announcement:\n\n${truncated}`,
+    maxTokens: 1000,
   });
 
-  const summary = validateAnalysisResult({ summaryMd: result.text });
-  return summary.summaryMd;
+  return validateAnalysisResult(result.text);
 }
 
-function stripMarkdown(text: string): string {
-  return text
-    .replace(/\*\*(.*?)\*\*/g, "$1")
-    .replace(/__(.*?)__/g, "$1")
-    .replace(/`([^`]*)`/g, "$1")
-    .replace(/^#+\s*/gm, "")
-    .replace(/^\s*[-*]\s+/gm, "")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
+function extractJsonBlock(text: string): { json: Record<string, unknown>; beforeJson: string } {
+  const match = text.match(/\{[\s\S]*\}/);
+  if (!match) throw new Error("No JSON block found in LLM response");
+  const json = JSON.parse(match[0]);
+  const beforeJson = text.slice(0, match.index).trim();
+  return { json, beforeJson };
 }
 
 export function validateAnalysisResult(
-  data: Record<string, unknown>,
-): { summaryMd: string } {
-  if (typeof data.summaryMd !== "string" || !data.summaryMd.trim()) {
-    throw new Error("Invalid or missing summaryMd");
+  raw: string,
+): AnalysisResult {
+  const { json, beforeJson } = extractJsonBlock(raw);
+
+  if (!beforeJson) {
+    throw new Error("Missing summary text before JSON block");
   }
-  return { summaryMd: stripMarkdown(data.summaryMd) };
+  const summaryMd = beforeJson;
+
+  if (!["POSITIVE", "NEUTRAL", "NEGATIVE"].includes(json.sentiment as string)) {
+    throw new Error(`Invalid sentiment: ${json.sentiment}`);
+  }
+  const sentiment = json.sentiment as Sentiment;
+
+  if (!["UP", "FLAT", "DOWN"].includes(json.predictedDirection as string)) {
+    throw new Error(`Invalid predictedDirection: ${json.predictedDirection}`);
+  }
+  const predictedDirection = json.predictedDirection as Direction;
+
+  if (typeof json.confidence !== "number" || json.confidence < 0 || json.confidence > 1) {
+    throw new Error(`Invalid confidence: ${json.confidence}`);
+  }
+  const confidence = json.confidence;
+
+  return { summaryMd, sentiment, predictedDirection, confidence };
 }
 
 export async function analyzeAnnouncement(
   announcementId: string,
-): Promise<string> {
+): Promise<AnalysisResult> {
   const announcement = await prisma.announcement.findUnique({
     where: { id: announcementId },
   });
@@ -143,24 +175,32 @@ export async function analyzeAnnouncement(
   });
 
   if (existingAnalysis) {
-    return existingAnalysis.summaryMd;
+    return {
+      summaryMd: existingAnalysis.summaryMd,
+      sentiment: existingAnalysis.sentiment ?? "NEUTRAL",
+      predictedDirection: existingAnalysis.predictedDirection ?? "FLAT",
+      confidence: existingAnalysis.confidence ?? 0,
+    };
   }
 
   const pdfBuffer = await fetchPdfBuffer(announcement.pdfS3Key);
   const pdfText = await extractPdfText(pdfBuffer);
-  const summaryMd = await runAnalysis(pdfText, announcement.headline);
+  const result = await runAnalysis(pdfText, announcement.headline);
 
   await prisma.analysis.create({
     data: {
       announcementId,
-      summaryMd,
+      summaryMd: result.summaryMd,
+      sentiment: result.sentiment,
+      predictedDirection: result.predictedDirection,
+      confidence: result.confidence,
       model: getModelName(),
       promptVersion: CURRENT_PROMPT_VERSION,
       complexity: ANALYSIS_COMPLEXITY,
     },
   });
 
-  return summaryMd;
+  return result;
 }
 
 export async function analyzeUnprocessedAnnouncements(): Promise<{

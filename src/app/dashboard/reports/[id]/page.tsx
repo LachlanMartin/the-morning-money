@@ -1,6 +1,13 @@
 import { notFound } from "next/navigation";
 import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { marked } from "marked";
+
+const DIRECTION_ARROWS: Record<string, string> = {
+  UP: "\u2191",
+  FLAT: "\u2192",
+  DOWN: "\u2193",
+};
 
 export default async function ReportDetailPage({
   params,
@@ -33,6 +40,19 @@ export default async function ReportDetailPage({
     day: "numeric",
   });
 
+  const mdContent = analyses.length === 0
+    ? "\n\nNo announcements for your watchlists on this day.\n"
+    : analyses.map((a, i) => {
+        const sep = i > 0 ? "\n\n---\n\n" : "";
+        const arrow = DIRECTION_ARROWS[a.predictedDirection ?? ""] ?? "";
+        const sentimentMd = a.sentiment
+          ? `_Sentiment:_ **${a.sentiment}** · _Direction:_ ${arrow} **${a.predictedDirection}** · _Confidence:_ **${Math.round((a.confidence ?? 0) * 100)}%**`
+          : "";
+        return `${sep}${a.summaryMd}\n\n${sentimentMd}`;
+      }).join("");
+
+  const bodyHtml = marked.parse(mdContent, { async: false }) as string;
+
   return (
     <div className="mx-auto w-full max-w-5xl px-6 py-8">
       {/* Dateline */}
@@ -62,35 +82,23 @@ export default async function ReportDetailPage({
         </p>
       </div>
 
-      {/* Analyses */}
-      {analyses.length === 0 ? (
-        <div className="border border-border p-12 sm:p-16 text-center bg-surface">
-          <p className="text-sm text-muted-foreground">
-            No announcements for your watchlists on this day.
-          </p>
-        </div>
-      ) : (
-        <div className="flex flex-col divide-y divide-border">
-          {analyses.map((a) => (
-            <article key={a.id} className="py-6 first:pt-0 last:pb-0">
-              <div className="flex items-center gap-2 mb-1">
-                <span className="font-mono text-xs tracking-wider uppercase text-accent-link font-semibold">
-                  {a.announcement.asxCode}
-                </span>
-              </div>
-              <h2
-                className="font-heading text-xl font-bold leading-tight mb-3"
-                style={{ fontFamily: "var(--font-heading-family)" }}
-              >
-                {a.announcement.headline}
-              </h2>
-              <p className="text-[15px] leading-relaxed text-foreground mb-3 font-sans whitespace-pre-line">
-                {a.summaryMd}
-              </p>
-            </article>
-          ))}
-        </div>
-      )}
+      {/* Analyses — markdown rendered */}
+      <div
+        className="prose prose-sm max-w-none
+          prose-headings:font-heading prose-headings:font-bold prose-headings:tracking-tight
+          prose-h2:text-xl prose-h2:mt-8 prose-h2:mb-3
+          prose-p:text-[15px] prose-p:leading-relaxed prose-p:mb-3
+          prose-strong:font-bold
+          prose-em:italic prose-em:text-muted-foreground
+          prose-hr:border-border prose-hr:my-6
+          [&_h2]:font-heading [&_h2]:font-bold [&_h2]:tracking-tight
+          [&_h2]:text-xl [&_h2]:mt-8 [&_h2]:mb-3
+          [&_p]:text-[15px] [&_p]:leading-relaxed [&_p]:mb-3
+          [&_strong]:font-bold
+          [&_em]:italic [&_em]:text-muted-foreground
+          [&_hr]:border-border [&_hr]:my-6"
+        dangerouslySetInnerHTML={{ __html: bodyHtml }}
+      />
 
       {/* Footer */}
       <div className="border-t-2 border-foreground mt-10 pt-4 text-center">

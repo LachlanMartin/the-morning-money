@@ -65,14 +65,29 @@ model Announcement {
   @@index([asxCode, publishedAt])
 }
 
+enum Sentiment {
+  POSITIVE
+  NEUTRAL
+  NEGATIVE
+}
+
+enum Direction {
+  UP
+  FLAT
+  DOWN
+}
+
 model Analysis {
-  id              String    @id @default(cuid())
-  announcementId  String    @unique
-  summaryMd       String
-  model           String
-  promptVersion   String
-  complexity      String    @default("plain")
-  createdAt       DateTime  @default(now())
+  id                 String     @id @default(cuid())
+  announcementId     String     @unique
+  summaryMd          String
+  sentiment          Sentiment?
+  predictedDirection Direction?
+  confidence         Float?
+  model              String
+  promptVersion      String
+  complexity         String     @default("plain")
+  createdAt          DateTime   @default(now())
 
   announcement Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
 }

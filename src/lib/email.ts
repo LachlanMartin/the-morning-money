@@ -1,41 +1,42 @@
+import { marked } from "marked";
 import { getTransport, getFromAddress } from "@/lib/smtp";
+import type { Sentiment, Direction } from "@/generated/prisma/client";
 
 type AnalysisForEmail = {
   asxCode: string;
   headline: string;
   summaryMd: string;
+  sentiment: Sentiment | null;
+  predictedDirection: Direction | null;
+  confidence: number | null;
+};
+
+const DIRECTION_ARROWS: Record<string, string> = {
+  UP: "\u2191",
+  FLAT: "\u2192",
+  DOWN: "\u2193",
 };
 
 function buildEmailHtml(
   analyses: AnalysisForEmail[],
   dateStr: string,
 ): string {
-  const items = analyses
-    .map(
-      (a) => `
-    <tr>
-      <td style="padding:20px 0 16px;border-bottom:1px solid #8a8a7a;">
-        <table cellpadding="0" cellspacing="0" width="100%">
-          <tr>
-            <td style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:#5b7a9a;padding-bottom:6px;">
-              ${a.asxCode}
-            </td>
-          </tr>
-          <tr>
-            <td style="font-family:'Playfair Display',Georgia,serif;font-size:20px;font-weight:700;color:#1a1a1a;padding-bottom:8px;line-height:1.25;">
-              ${a.headline}
-            </td>
-          </tr>
-          <tr>
-            <td style="font-family:Georgia,'Times New Roman',serif;font-size:15px;line-height:1.6;color:#1a1a1a;padding-bottom:10px;">
-              ${a.summaryMd.replace(/\n/g, "<br>")}
-            </td>
-          </tr>
-        </table>
-      </td>
-    </tr>`,
-    )
-    .join("");
+  const intro = "Here are today's announcements for your watchlist tickers.\n\nGeneral information only — not financial advice.";
+
+  const body = analyses.length === 0
+    ? "No announcements for your watchlists today.\n"
+    : analyses.map((a, i) => {
+        const sep = i > 0 ? "\n\n---\n\n" : "";
+        const arrow = DIRECTION_ARROWS[a.predictedDirection ?? ""] ?? "";
+        const sentimentMd = a.sentiment
+          ? `_Sentiment:_ **${a.sentiment}** · _Direction:_ ${arrow} **${a.predictedDirection}** · _Confidence:_ **${Math.round((a.confidence ?? 0) * 100)}%**`
+          : "";
+        return `${sep}${a.summaryMd}\n\n${sentimentMd}`;
+      }).join("");
+
+  const md = `${intro}\n\n---\n\n${body}`;
+
+  const contentHtml = marked.parse(md, { async: false }) as string;
 
   return `<!doctype html>
 <html lang="en">
@@ -43,6 +44,31 @@ function buildEmailHtml(
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Your Morning Money digest</title>
+  <style>
+    .email-body h2 {
+      font-family: 'Playfair Display', Georgia, serif;
+      font-size: 20px;
+      font-weight: 700;
+      color: #1a1a1a;
+      margin: 16px 0 8px;
+      line-height: 1.25;
+    }
+    .email-body h2:first-child { margin-top: 0; }
+    .email-body p {
+      font-family: Georgia, 'Times New Roman', serif;
+      font-size: 15px;
+      line-height: 1.6;
+      color: #1a1a1a;
+      margin: 0 0 10px;
+    }
+    .email-body strong { font-weight: 700; }
+    .email-body em { font-style: italic; color: #6b6258; }
+    .email-body hr {
+      border: none;
+      border-top: 1px solid #8a8a7a;
+      margin: 20px 0;
+    }
+  </style>
 </head>
 <body style="margin:0;padding:0;background:#f5f0e8;">
   <table cellpadding="0" cellspacing="0" width="100%">
@@ -63,21 +89,10 @@ function buildEmailHtml(
               ${dateStr} &middot; ASX Edition
             </td>
           </tr>
-          <!-- Intro -->
+          <!-- Content body (markdown rendered) -->
           <tr>
-            <td style="padding:24px 24px 0;">
-              <p style="font-family:Georgia,'Times New Roman',serif;font-size:15px;line-height:1.5;color:#6b6258;margin:0;">
-                Here are today's announcements for your watchlist tickers.
-                General information only &mdash; not financial advice.
-              </p>
-            </td>
-          </tr>
-          <!-- Analyses -->
-          <tr>
-            <td style="padding:8px 24px 0;">
-              <table cellpadding="0" cellspacing="0" width="100%">
-                ${items || "<tr><td style='font-family:Georgia,serif;font-size:15px;color:#6b6258;padding:20px 0;text-align:center;'>No announcements for your watchlists today.</td></tr>"}
-              </table>
+            <td class="email-body" style="padding:16px 24px 0;">
+              ${contentHtml}
             </td>
           </tr>
           <!-- Footer -->

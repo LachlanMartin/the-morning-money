@@ -1,6 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 // Mock dependencies before imports
+vi.mock("@/lib/ai", () => ({
+  chat: vi.fn(),
+  getModelName: vi.fn().mockReturnValue("test-model"),
+  hasApiKey: vi.fn().mockReturnValue(false),
+}));
+
 vi.mock("@/lib/ollama", () => ({
   chat: vi.fn(),
   getModelName: vi.fn().mockReturnValue("test-model"),
