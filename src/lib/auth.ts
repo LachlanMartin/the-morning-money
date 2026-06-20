@@ -1,7 +1,5 @@
 import { prisma } from "@/lib/prisma";
 
-const LOCAL_USER_SUPABASE_ID = "local";
-
 async function getOrCreateLocalUser() {
   const email = process.env.LOCAL_USER_EMAIL;
   if (!email) throw new Error("LOCAL_USER_EMAIL is required");
@@ -15,7 +13,6 @@ async function getOrCreateLocalUser() {
   try {
     return await prisma.user.create({
       data: {
-        supabaseId: LOCAL_USER_SUPABASE_ID,
         email,
         trialExpiresAt: farFuture,
       },

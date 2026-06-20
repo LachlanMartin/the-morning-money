@@ -16,7 +16,6 @@ docker-compose.yml
 test-results
 .playwright-mcp
 e2e
-supabase/.temp
 .claude
 .mcp.json
 skills-lock.json

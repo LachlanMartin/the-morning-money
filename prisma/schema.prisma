@@ -9,7 +9,6 @@ datasource db {
 
 model User {
   id               String    @id @default(cuid())
-  supabaseId       String    @unique
   email            String    @unique
   stripeCustomerId String?   @unique
   plan             Plan      @default(FREE)

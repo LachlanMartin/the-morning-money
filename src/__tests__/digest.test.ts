@@ -95,7 +95,7 @@ describe("generateDigestRun", () => {
     // Create test user
     const user = await prisma.user.create({
       data: {
-        supabaseId: `test-digest-${Date.now()}`,
+
         email: "digest-test@tmm.dev",
         plan: "PAID",
       },
@@ -199,7 +199,7 @@ describe("sendDigest", () => {
 
     const user = await prisma.user.create({
       data: {
-        supabaseId: `test-send-${Date.now()}`,
+
         email: "digest-test@tmm.dev",
         plan: "PAID",
       },
@@ -304,7 +304,7 @@ describe("runDailyPipeline", () => {
 
     const user = await prisma.user.create({
       data: {
-        supabaseId: `test-pipeline-${Date.now()}`,
+
         email: "digest-test@tmm.dev",
         plan: "PAID",
       },
