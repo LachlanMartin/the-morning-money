@@ -3,12 +3,6 @@ import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { marked } from "marked";
 
-const DIRECTION_ARROWS: Record<string, string> = {
-  UP: "\u2191",
-  FLAT: "\u2192",
-  DOWN: "\u2193",
-};
-
 export default async function ReportDetailPage({
   params,
 }: {
@@ -44,11 +38,7 @@ export default async function ReportDetailPage({
     ? "\n\nNo announcements for your watchlists on this day.\n"
     : analyses.map((a, i) => {
         const sep = i > 0 ? "\n\n---\n\n" : "";
-        const arrow = DIRECTION_ARROWS[a.predictedDirection ?? ""] ?? "";
-        const sentimentMd = a.sentiment
-          ? `_Sentiment:_ **${a.sentiment}** · _Direction:_ ${arrow} **${a.predictedDirection}** · _Confidence:_ **${Math.round((a.confidence ?? 0) * 100)}%**`
-          : "";
-        return `${sep}${a.summaryMd}\n\n${sentimentMd}`;
+        return `${sep}${a.summaryMd}`;
       }).join("");
 
   const bodyHtml = marked.parse(mdContent, { async: false }) as string;

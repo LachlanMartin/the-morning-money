@@ -11,12 +11,6 @@ type AnalysisForEmail = {
   confidence: number | null;
 };
 
-const DIRECTION_ARROWS: Record<string, string> = {
-  UP: "\u2191",
-  FLAT: "\u2192",
-  DOWN: "\u2193",
-};
-
 function buildEmailHtml(
   analyses: AnalysisForEmail[],
   dateStr: string,
@@ -27,11 +21,7 @@ function buildEmailHtml(
     ? "No announcements for your watchlists today.\n"
     : analyses.map((a, i) => {
         const sep = i > 0 ? "\n\n---\n\n" : "";
-        const arrow = DIRECTION_ARROWS[a.predictedDirection ?? ""] ?? "";
-        const sentimentMd = a.sentiment
-          ? `_Sentiment:_ **${a.sentiment}** · _Direction:_ ${arrow} **${a.predictedDirection}** · _Confidence:_ **${Math.round((a.confidence ?? 0) * 100)}%**`
-          : "";
-        return `${sep}${a.summaryMd}\n\n${sentimentMd}`;
+        return `${sep}${a.summaryMd}`;
       }).join("");
 
   const md = `${intro}\n\n---\n\n${body}`;
